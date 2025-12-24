@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+:root {
+  --background: 255 255 255;
+  --foreground: 23 23 23;
+  
+  --card: 255 255 255;
+  --card-foreground: 23 23 23;
+  
+  --popover: 255 255 255;
+  --popover-foreground: 23 23 23;
+  
+  --primary: 59 130 246;
+  --primary-foreground: 255 255 255;
+  
+  --secondary: 241 245 249;
+  --secondary-foreground: 23 23 23;
+  
+  --muted: 241 245 249;
+  --muted-foreground: 100 116 139;
+  
+  --accent: 241 245 249;
+  --accent-foreground: 23 23 23;
+  
+  --destructive: 239 68 68;
+  --destructive-foreground: 255 255 255;
+  
+  --border: 226 232 240;
+  --input: 226 232 240;
+  --ring: 59 130 246;
+  
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 15 23 42;
+  --foreground: 248 250 252;
+  
+  --card: 30 41 59;
+  --card-foreground: 248 250 252;
+  
+  --popover: 30 41 59;
+  --popover-foreground: 248 250 252;
+  
+  --primary: 96 165 250;
+  --primary-foreground: 15 23 42;
+  
+  --secondary: 51 65 85;
+  --secondary-foreground: 248 250 252;
+  
+  --muted: 51 65 85;
+  --muted-foreground: 148 163 184;
+  
+  --accent: 51 65 85;
+  --accent-foreground: 248 250 252;
+  
+  --destructive: 239 68 68;
+  --destructive-foreground: 248 250 252;
+  
+  --border: 51 65 85;
+  --input: 51 65 85;
+  --ring: 96 165 250;
+}
+
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+}
+
+body {
+  background: linear-gradient(to bottom right, #f8fafc, #e0e7ff, #e0f2fe);
+  color: rgb(var(--foreground));
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
+  background: linear-gradient(to bottom right, #0f172a, #1e293b, #334155);
+}
+
+/* Glassmorphism Effects - Light Mode */
+.glass {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Silver/Platinum Glass Effect - Light Mode */
+.glass-silver {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(240, 240, 250, 0.2));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 
+    0 8px 32px 0 rgba(31, 38, 135, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Glassmorphism Effects - Dark Mode */
+.dark .glass {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dark .glass-strong {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.dark .glass-subtle {
+  background: rgba(30, 41, 59, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.dark .glass-silver {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(51, 65, 85, 0.4));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Scrollbar Styling - Light Mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* Scrollbar Styling - Dark Mode */
+.dark ::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
