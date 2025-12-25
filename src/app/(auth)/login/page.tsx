@@ -44,7 +44,7 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Login failed:", error)
       const errorMessage = error.message || error.toString() || "Failed to login"
-      
+
       // Provide more helpful error messages
       if (errorMessage.includes("fetch") || errorMessage.includes("network")) {
         toast.error("Network error. Please check your Supabase URL and internet connection.")
@@ -63,8 +63,8 @@ export default function LoginPage() {
       <Card className="glass-silver border-white/30 dark:border-slate-700/30 w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-2xl">X</span>
+            <div className="w-12 h-12 relative flex items-center justify-center">
+              <img src="/images/logo.png" alt="Xero CRM" className="w-full h-full object-contain" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-center text-foreground">

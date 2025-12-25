@@ -31,8 +31,8 @@ export function Sidebar() {
       <div className="p-4">
         {/* Logo Section - Icon Only */}
         <div className="flex items-center justify-center">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-xl">X</span>
+          <div className="w-10 h-10 relative flex items-center justify-center">
+            <img src="/images/logo.png" alt="Xero CRM" className="w-full h-full object-contain" />
           </div>
         </div>
       </div>
