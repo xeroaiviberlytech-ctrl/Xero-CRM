@@ -2,6 +2,10 @@ import { createTRPCRouter, publicProcedure } from "../server"
 import { z } from "zod"
 import { usersRouter } from "./users"
 import { leadsRouter } from "./leads"
+import { dealsRouter } from "./deals"
+import { campaignsRouter } from "./campaigns"
+import { tasksRouter } from "./tasks"
+import { analyticsRouter } from "./analytics"
 
 export const appRouter = createTRPCRouter({
   // Health check endpoint
@@ -19,6 +23,10 @@ export const appRouter = createTRPCRouter({
   // Feature routers
   users: usersRouter,
   leads: leadsRouter,
+  deals: dealsRouter,
+  campaigns: campaignsRouter,
+  tasks: tasksRouter,
+  analytics: analyticsRouter,
 })
 
 export type AppRouter = typeof appRouter
