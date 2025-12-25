@@ -1,11 +1,12 @@
 "use client"
 
-import { Bell, Search, User, LogOut, RefreshCw, Download } from "lucide-react"
+import { useState } from "react"
+import { Bell, Search, User, LogOut, RefreshCw, Download, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useAuth } from "@/contexts/auth-context"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +15,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { AddLeadDialog } from "@/components/dialogs/add-lead-dialog"
+import { AddDealDialog } from "@/components/dialogs/add-deal-dialog"
+import { AddTaskDialog } from "@/components/dialogs/add-task-dialog"
+import { AddCampaignDialog } from "@/components/dialogs/add-campaign-dialog"
+import { trpc } from "@/lib/trpc/react"
+import { toast } from "sonner"
 
 export function DashboardHeader() {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
+  const utils = trpc.useUtils()
+  
+  // Dialog states
+  const [leadDialogOpen, setLeadDialogOpen] = useState(false)
+  const [dealDialogOpen, setDealDialogOpen] = useState(false)
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false)
   
   const userInitials = user?.email
     ?.split("@")[0]
@@ -27,16 +42,63 @@ export function DashboardHeader() {
   const userName = user?.user_metadata?.name || "Sarah Chen"
   const userRole = user?.user_metadata?.role || "sales"
 
+  // Refresh data handler
+  const handleRefresh = () => {
+    if (pathname === "/dashboard") {
+      utils.leads.list.invalidate()
+      utils.deals.list.invalidate()
+      utils.tasks.list.invalidate()
+      utils.campaigns.list.invalidate()
+      toast.success("Data refreshed")
+    } else if (pathname === "/pipeline") {
+      utils.deals.list.invalidate()
+      utils.deals.getByStage.invalidate()
+      utils.deals.getStageStats.invalidate()
+      toast.success("Pipeline data refreshed")
+    } else if (pathname === "/leads") {
+      utils.leads.list.invalidate()
+      toast.success("Leads refreshed")
+    } else if (pathname === "/tasks") {
+      utils.tasks.list.invalidate()
+      utils.tasks.getByStatus.invalidate()
+      utils.tasks.getStats.invalidate()
+      toast.success("Tasks refreshed")
+    } else if (pathname === "/analytics" || pathname === "/marketing") {
+      utils.campaigns.list.invalidate()
+      toast.success("Campaigns refreshed")
+    }
+  }
+
+  // Export handler (placeholder - can be enhanced later)
+  const handleExport = () => {
+    toast.info("Export functionality coming soon")
+  }
+
+  // Filter handler (placeholder - can be enhanced later)
+  const handleFilter = () => {
+    toast.info("Filter options coming soon")
+  }
+
   // Get context-specific action buttons based on current page
   const getActionButtons = () => {
     if (pathname === "/dashboard") {
       return (
         <>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleRefresh}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh Data
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleExport}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
@@ -45,11 +107,22 @@ export function DashboardHeader() {
     } else if (pathname === "/pipeline") {
       return (
         <>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={() => setDealDialogOpen(true)}
+          >
             <span className="mr-2">+</span>
             Add Deal
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleFilter}
+          >
+            <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
         </>
@@ -57,14 +130,31 @@ export function DashboardHeader() {
     } else if (pathname === "/leads") {
       return (
         <>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={() => setLeadDialogOpen(true)}
+          >
             <span className="mr-2">+</span>
             Add Lead
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleFilter}
+          >
+            <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
         </>
@@ -72,11 +162,22 @@ export function DashboardHeader() {
     } else if (pathname === "/tasks") {
       return (
         <>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={() => setTaskDialogOpen(true)}
+          >
             <span className="mr-2">+</span>
             Add Task
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleFilter}
+          >
+            <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
         </>
@@ -84,11 +185,22 @@ export function DashboardHeader() {
     } else if (pathname === "/analytics" || pathname === "/marketing") {
       return (
         <>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={() => setCampaignDialogOpen(true)}
+          >
             <span className="mr-2">+</span>
             New Campaign
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-subtle border-white/30 dark:border-slate-700/30"
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-2" />
             Export Results
           </Button>
         </>
@@ -119,17 +231,33 @@ export function DashboardHeader() {
         <div className="flex items-center space-x-3">
           <ThemeToggle />
           
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative hover:bg-white/40 dark:hover:bg-slate-800/40"
-          >
-            <Bell className="h-5 w-5 text-foreground" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-white/40 dark:bg-slate-800/40 flex items-center justify-center text-[10px] font-medium text-foreground">
-              2
-            </span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative hover:bg-white/40 dark:hover:bg-slate-800/40"
+              >
+                <Bell className="h-5 w-5 text-foreground" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-white/40 dark:bg-slate-800/40 flex items-center justify-center text-[10px] font-medium text-foreground">
+                  2
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="glass-silver border-white/30 dark:border-slate-700/30 w-80">
+              <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/20 dark:bg-slate-700/20" />
+              <div className="max-h-96 overflow-y-auto">
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No new notifications</p>
+                  <p className="text-xs mt-1">You're all caught up!</p>
+                </div>
+                {/* TODO: Add real notifications from activity feed */}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="h-8 w-px bg-white/30 dark:bg-slate-700/30"></div>
 
@@ -151,7 +279,10 @@ export function DashboardHeader() {
             <DropdownMenuContent align="end" className="glass-silver border-white/30 dark:border-slate-700/30">
               <DropdownMenuLabel className="text-foreground">My Account</DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-white/20 dark:bg-slate-700/20" />
-              <DropdownMenuItem className="text-foreground cursor-pointer">
+              <DropdownMenuItem 
+                className="text-foreground cursor-pointer"
+                onClick={() => router.push("/settings")}
+              >
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
@@ -166,6 +297,12 @@ export function DashboardHeader() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <AddLeadDialog open={leadDialogOpen} onOpenChange={setLeadDialogOpen} />
+      <AddDealDialog open={dealDialogOpen} onOpenChange={setDealDialogOpen} />
+      <AddTaskDialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen} />
+      <AddCampaignDialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen} />
     </header>
   )
 }

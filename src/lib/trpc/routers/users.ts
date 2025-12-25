@@ -19,14 +19,13 @@ export const usersRouter = createTRPCRouter({
   }),
 
   /**
-   * Update user profile
+   * Update user profile (users cannot change their own role)
    */
   updateProfile: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1).max(100).optional(),
         avatar: z.string().url().optional().nullable(),
-        role: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -35,7 +34,7 @@ export const usersRouter = createTRPCRouter({
         data: {
           ...(input.name && { name: input.name }),
           ...(input.avatar !== undefined && { avatar: input.avatar }),
-          ...(input.role && { role: input.role }),
+          // Note: Role changes are not allowed here - use updateRole endpoint (admin only)
         },
       })
 
@@ -47,6 +46,75 @@ export const usersRouter = createTRPCRouter({
         role: updatedUser.role,
         updatedAt: updatedUser.updatedAt,
       }
+    }),
+
+  /**
+   * List all users (admin only)
+   */
+  list: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.prismaUser.role !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Only admins can view all users",
+      })
+    }
+
+    const users = await ctx.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatar: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    return users
+  }),
+
+  /**
+   * Update user role (admin only)
+   */
+  updateRole: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        role: z.enum(["user", "admin"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only admins can change roles
+      if (ctx.prismaUser.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admins can change user roles",
+        })
+      }
+
+      // Prevent admins from removing their own admin role
+      if (input.userId === ctx.prismaUser.id && input.role === "user") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You cannot remove your own admin role",
+        })
+      }
+
+      const updatedUser = await ctx.prisma.user.update({
+        where: { id: input.userId },
+        data: { role: input.role },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          updatedAt: true,
+        },
+      })
+
+      return updatedUser
     }),
 
   /**

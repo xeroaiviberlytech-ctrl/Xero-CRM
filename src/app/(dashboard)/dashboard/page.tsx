@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   BarChart,
@@ -13,6 +14,21 @@ import {
 } from "lucide-react"
 import { trpc } from "@/lib/trpc/react"
 import { formatDistanceToNow } from "date-fns"
+import {
+  LineChart,
+  Line,
+  BarChart as RechartsBarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts"
+import { MemoizedChart } from "@/components/charts/memoized-chart"
 
 interface ActivityItem {
   id: string
@@ -46,60 +62,74 @@ function getInitials(name: string | null | undefined): string {
 }
 
 export default function DashboardPage() {
-  // Fetch dashboard data
-  const { data: dashboardStats, isLoading: statsLoading } = trpc.analytics.getDashboardStats.useQuery()
-  const { data: recentActivities, isLoading: activitiesLoading } = trpc.analytics.getRecentActivities.useQuery({ limit: 5 })
-  const { data: revenueTrend } = trpc.analytics.getRevenueTrend.useQuery()
-  const { data: pipelineDistribution } = trpc.analytics.getPipelineDistribution.useQuery()
+  // Fetch dashboard data with staleTime for better caching
+  const { data: dashboardStats, isLoading: statsLoading } = trpc.analytics.getDashboardStats.useQuery(
+    undefined,
+    { staleTime: 30000 } // Cache for 30 seconds
+  )
+  const { data: recentActivities, isLoading: activitiesLoading } = trpc.analytics.getRecentActivities.useQuery(
+    { limit: 5 },
+    { staleTime: 10000 } // Cache for 10 seconds
+  )
+  const { data: revenueTrend } = trpc.analytics.getRevenueTrend.useQuery(
+    undefined,
+    { staleTime: 60000 } // Cache for 1 minute
+  )
+  const { data: pipelineDistribution } = trpc.analytics.getPipelineDistribution.useQuery(
+    undefined,
+    { staleTime: 60000 } // Cache for 1 minute
+  )
 
-  // Format stats from API data
-  const stats = dashboardStats
-    ? [
-        {
-          title: "Total Revenue",
-          value: dashboardStats.totalRevenue.formatted,
-          change: dashboardStats.totalRevenue.change,
-          icon: IndianRupee,
-          trend: dashboardStats.totalRevenue.trend as "up" | "down",
-          bgIcon: IndianRupee,
-        },
-        {
-          title: "Active Leads",
-          value: dashboardStats.activeLeads.value.toLocaleString(),
-          change: dashboardStats.activeLeads.change,
-          icon: Users,
-          trend: dashboardStats.activeLeads.trend as "up" | "down",
-          bgIcon: Users,
-        },
-        {
-          title: "Conversion Rate",
-          value: `${dashboardStats.conversionRate.value}%`,
-          change: dashboardStats.conversionRate.change,
-          icon: Target,
-          trend: dashboardStats.conversionRate.trend as "up" | "down",
-          bgIcon: Target,
-        },
-        {
-          title: "Active Campaigns",
-          value: dashboardStats.activeCampaigns.value.toString(),
-          change: dashboardStats.activeCampaigns.change,
-          icon: BarChart,
-          trend: dashboardStats.activeCampaigns.trend as "up" | "down",
-          bgIcon: BarChart,
-        },
-      ]
-    : []
+  // Format stats from API data - memoized to prevent recalculation
+  const stats = useMemo(() => {
+    if (!dashboardStats) return []
+    return [
+      {
+        title: "Total Revenue",
+        value: dashboardStats.totalRevenue.formatted,
+        change: dashboardStats.totalRevenue.change,
+        icon: IndianRupee,
+        trend: dashboardStats.totalRevenue.trend as "up" | "down",
+        bgIcon: IndianRupee,
+      },
+      {
+        title: "Active Leads",
+        value: dashboardStats.activeLeads.value.toLocaleString(),
+        change: dashboardStats.activeLeads.change,
+        icon: Users,
+        trend: dashboardStats.activeLeads.trend as "up" | "down",
+        bgIcon: Users,
+      },
+      {
+        title: "Conversion Rate",
+        value: `${dashboardStats.conversionRate.value}%`,
+        change: dashboardStats.conversionRate.change,
+        icon: Target,
+        trend: dashboardStats.conversionRate.trend as "up" | "down",
+        bgIcon: Target,
+      },
+      {
+        title: "Active Campaigns",
+        value: dashboardStats.activeCampaigns.value.toString(),
+        change: dashboardStats.activeCampaigns.change,
+        icon: BarChart,
+        trend: dashboardStats.activeCampaigns.trend as "up" | "down",
+        bgIcon: BarChart,
+      },
+    ]
+  }, [dashboardStats])
 
-  // Format activities from API data
-  const formattedActivities: ActivityItem[] = recentActivities
-    ? recentActivities.map((activity) => ({
-        id: activity.id,
-        user: activity.user.name || activity.user.email,
-        userInitials: getInitials(activity.user.name),
-        action: activity.title,
-        time: formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true }),
-      }))
-    : []
+  // Format activities from API data - memoized
+  const formattedActivities: ActivityItem[] = useMemo(() => {
+    if (!recentActivities) return []
+    return recentActivities.map((activity) => ({
+      id: activity.id,
+      user: activity.user.name || activity.user.email,
+      userInitials: getInitials(activity.user.name),
+      action: activity.title,
+      time: formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true }),
+    }))
+  }, [recentActivities])
 
   if (statsLoading) {
     return (
@@ -166,24 +196,69 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm text-foreground">revenue</span>
+            {revenueTrend && revenueTrend.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-sm text-foreground">Revenue</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                    <span className="text-sm text-foreground">Target</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                  <span className="text-sm text-foreground">target</span>
-                </div>
+                <MemoizedChart height={250}>
+                  <LineChart data={revenueTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fill: 'currentColor', fontSize: 12 }}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis 
+                      tick={{ fill: 'currentColor', fontSize: 12 }}
+                      className="text-muted-foreground"
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        border: '1px solid rgba(0, 0, 0, 0.1)',
+                        borderRadius: '8px',
+                        backdropFilter: 'blur(10px)'
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      name="Revenue"
+                      dot={{ r: 4 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="target" 
+                      stroke="#f97316" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Target"
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </MemoizedChart>
               </div>
+            ) : (
               <div className="h-64 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
                 <div className="text-center">
                   <BarChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Revenue chart will be displayed here</p>
+                  <p className="text-sm">No revenue data available</p>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -194,12 +269,51 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
-              <div className="text-center">
-                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Pipeline chart will be displayed here</p>
+            {pipelineDistribution && pipelineDistribution.length > 0 ? (
+              <MemoizedChart height={250}>
+                <PieChart>
+                  <Pie
+                    data={pipelineDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {pipelineDistribution.map((entry: any, index: number) => {
+                      const colors = [
+                        '#3b82f6', // blue
+                        '#8b5cf6', // purple
+                        '#ec4899', // pink
+                        '#f59e0b', // amber
+                        '#10b981', // green
+                        '#ef4444', // red
+                      ]
+                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                </PieChart>
+              </MemoizedChart>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
+                <div className="text-center">
+                  <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No pipeline data available</p>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

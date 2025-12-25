@@ -1,44 +1,83 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Mail, Users, Target, Calendar, Loader2 } from "lucide-react"
 import { trpc } from "@/lib/trpc/react"
 import { format } from "date-fns"
+import { AddCampaignDialog } from "@/components/dialogs/add-campaign-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts"
 
 export default function MarketingPage() {
-  // Fetch campaigns and stats
-  const { data: campaigns, isLoading: campaignsLoading } = trpc.campaigns.list.useQuery({})
-  const { data: campaignStats, isLoading: statsLoading } = trpc.campaigns.getStats.useQuery()
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false)
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
+  
+  // Fetch campaigns and stats with caching
+  const { data: campaigns, isLoading: campaignsLoading } = trpc.campaigns.list.useQuery(
+    {},
+    { staleTime: 30000 }
+  )
+  const { data: campaignStats, isLoading: statsLoading } = trpc.campaigns.getStats.useQuery(
+    undefined,
+    { staleTime: 30000 }
+  )
+  const { data: campaignPerformance } = trpc.analytics.getCampaignPerformance.useQuery(
+    {},
+    { staleTime: 60000 }
+  )
+  const { data: selectedCampaign } = trpc.campaigns.getById.useQuery(
+    { id: selectedCampaignId! },
+    { enabled: !!selectedCampaignId, staleTime: 30000 }
+  )
 
-  // Format campaign stats for display
-  const stats = campaignStats
-    ? [
-        {
-          title: "Total Campaigns",
-          value: campaignStats.totalCampaigns.toString(),
-          icon: Target,
-        },
-        {
-          title: "Total Sent",
-          value: campaignStats.totalSent >= 1000 
-            ? `${(campaignStats.totalSent / 1000).toFixed(1)}k`
-            : campaignStats.totalSent.toString(),
-          icon: Mail,
-        },
-        {
-          title: "Avg Open Rate",
-          value: `${campaignStats.avgOpenRate.toFixed(1)}%`,
-          icon: Users,
-        },
-        {
-          title: "Total Conversions",
-          value: campaignStats.totalConverted.toLocaleString(),
-          icon: TrendingUp,
-        },
-      ]
-    : []
+  // Format campaign stats for display - memoized
+  const stats = useMemo(() => {
+    if (!campaignStats) return []
+    return [
+      {
+        title: "Total Campaigns",
+        value: campaignStats.totalCampaigns.toString(),
+        icon: Target,
+      },
+      {
+        title: "Total Sent",
+        value: campaignStats.totalSent >= 1000 
+          ? `${(campaignStats.totalSent / 1000).toFixed(1)}k`
+          : campaignStats.totalSent.toString(),
+        icon: Mail,
+      },
+      {
+        title: "Avg Open Rate",
+        value: `${campaignStats.avgOpenRate.toFixed(1)}%`,
+        icon: Users,
+      },
+      {
+        title: "Total Conversions",
+        value: campaignStats.totalConverted.toLocaleString(),
+        icon: TrendingUp,
+      },
+    ]
+  }, [campaignStats])
 
   // Calculate rates for campaigns
   const calculateOpenRate = (sent: number, opened: number): number => {
@@ -72,7 +111,10 @@ export default function MarketingPage() {
           <h1 className="text-3xl font-bold text-foreground">Campaign Management</h1>
           <p className="text-muted-foreground mt-1">Track and manage your marketing campaigns</p>
         </div>
-        <Button className="glass-strong border-white/30 dark:border-slate-700/30">
+        <Button 
+          className="glass-strong border-white/30 dark:border-slate-700/30"
+          onClick={() => setCampaignDialogOpen(true)}
+        >
           Create Campaign
         </Button>
       </div>
@@ -115,12 +157,44 @@ export default function MarketingPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
-            <div className="text-center">
-              <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Campaign performance chart will be displayed here</p>
+          {campaignPerformance && campaignPerformance.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={campaignPerformance.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fill: 'currentColor', fontSize: 12 }}
+                  className="text-muted-foreground"
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  tick={{ fill: 'currentColor', fontSize: 12 }}
+                  className="text-muted-foreground"
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: '8px',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="openRate" fill="#3b82f6" name="Open Rate (%)" />
+                <Bar dataKey="clickRate" fill="#8b5cf6" name="Click Rate (%)" />
+                <Bar dataKey="conversionRate" fill="#10b981" name="Conversion Rate (%)" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
+              <div className="text-center">
+                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No campaign performance data available</p>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -163,7 +237,12 @@ export default function MarketingPage() {
                           <span>{formatDateRange(campaign.startDate, campaign.endDate)}</span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="glass-subtle border-white/30 dark:border-slate-700/30"
+                        onClick={() => setSelectedCampaignId(campaign.id)}
+                      >
                         View Details
                       </Button>
                     </div>
@@ -201,6 +280,92 @@ export default function MarketingPage() {
           </div>
         )}
       </div>
+
+      {/* Create Campaign Dialog */}
+      <AddCampaignDialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen} />
+
+      {/* View Campaign Details Dialog */}
+      <Dialog open={!!selectedCampaignId} onOpenChange={(open) => !open && setSelectedCampaignId(null)}>
+        <DialogContent className="glass-silver border-white/30 dark:border-slate-700/30 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedCampaign ? selectedCampaign.name : "Campaign Details"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCampaign ? "Campaign details and performance metrics" : "Loading campaign information..."}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCampaign ? (
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge className={
+                    selectedCampaign.status === "active" 
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300" 
+                      : selectedCampaign.status === "completed"
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
+                      : "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300"
+                  }>
+                    {selectedCampaign.status.charAt(0).toUpperCase() + selectedCampaign.status.slice(1)}
+                  </Badge>
+                  <Badge variant="outline" className="bg-white/40 dark:bg-slate-800/40">
+                    {selectedCampaign.type}
+                  </Badge>
+                </div>
+                
+                {selectedCampaign.description && (
+                  <p className="text-sm text-muted-foreground">{selectedCampaign.description}</p>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Start Date</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {selectedCampaign.startDate ? format(new Date(selectedCampaign.startDate), "MMM dd, yyyy") : "Not set"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">End Date</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {selectedCampaign.endDate ? format(new Date(selectedCampaign.endDate), "MMM dd, yyyy") : "Not set"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4 pt-4 border-t border-white/20 dark:border-slate-700/20">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Sent</p>
+                    <p className="text-lg font-semibold text-foreground">{selectedCampaign.sent.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Opened</p>
+                    <p className="text-lg font-semibold text-foreground">{selectedCampaign.opened.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {calculateOpenRate(selectedCampaign.sent, selectedCampaign.opened).toFixed(1)}% rate
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Clicked</p>
+                    <p className="text-lg font-semibold text-foreground">{selectedCampaign.clicked.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {calculateClickRate(selectedCampaign.opened, selectedCampaign.clicked).toFixed(1)}% rate
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Converted</p>
+                    <p className="text-lg font-semibold text-foreground">{selectedCampaign.converted.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {calculateConversionRate(selectedCampaign.clicked, selectedCampaign.converted).toFixed(1)}% rate
+                    </p>
+                  </div>
+                </div>
+              </div>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

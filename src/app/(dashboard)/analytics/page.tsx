@@ -1,9 +1,28 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, Calendar, Loader2 } from "lucide-react"
 import { trpc } from "@/lib/trpc/react"
+import { DateRangeDialog } from "@/components/dialogs/date-range-dialog"
+import { toast } from "sonner"
+import { format } from "date-fns"
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts"
 
 // Format currency
 function formatCurrency(value: number | null | undefined): string {
@@ -21,13 +40,51 @@ function formatCurrency(value: number | null | undefined): string {
 }
 
 export default function AnalyticsPage() {
-  // Fetch analytics data
-  const { data: dealsClosed, isLoading: dealsLoading } = trpc.analytics.getDealsClosed.useQuery({ period: "quarter" })
-  const { data: avgDealSize, isLoading: avgSizeLoading } = trpc.analytics.getAverageDealSize.useQuery()
-  const { data: teamPerformance, isLoading: teamLoading } = trpc.analytics.getTeamPerformance.useQuery()
-  const { data: leadSources, isLoading: sourcesLoading } = trpc.analytics.getLeadSources.useQuery()
-  const { data: revenueTrend } = trpc.analytics.getRevenueTrend.useQuery()
-  const { data: pipelineDistribution } = trpc.analytics.getPipelineDistribution.useQuery()
+  const [dateRangeDialogOpen, setDateRangeDialogOpen] = useState(false)
+  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
+    start: null,
+    end: null,
+  })
+
+  // Fetch analytics data with caching for better performance
+  const { data: dealsClosed, isLoading: dealsLoading } = trpc.analytics.getDealsClosed.useQuery(
+    { period: "quarter" },
+    { staleTime: 60000 }
+  )
+  const { data: avgDealSize, isLoading: avgSizeLoading } = trpc.analytics.getAverageDealSize.useQuery(
+    undefined,
+    { staleTime: 60000 }
+  )
+  const { data: teamPerformance, isLoading: teamLoading } = trpc.analytics.getTeamPerformance.useQuery(
+    undefined,
+    { staleTime: 60000 }
+  )
+  const { data: leadSources, isLoading: sourcesLoading } = trpc.analytics.getLeadSources.useQuery(
+    undefined,
+    { staleTime: 60000 }
+  )
+  const { data: revenueTrend } = trpc.analytics.getRevenueTrend.useQuery(
+    undefined,
+    { staleTime: 60000 }
+  )
+  const { data: pipelineDistribution } = trpc.analytics.getPipelineDistribution.useQuery(
+    undefined,
+    { staleTime: 60000 }
+  )
+
+  const handleDateRangeApply = (start: Date | null, end: Date | null) => {
+    setDateRange({ start, end })
+    if (start && end) {
+      toast.success(`Date range set: ${format(start, "MMM dd, yyyy")} - ${format(end, "MMM dd, yyyy")}`)
+    } else {
+      toast.success("Date range cleared")
+    }
+  }
+
+  const handleExportPDF = () => {
+    // TODO: Implement actual PDF export
+    toast.info("PDF export functionality coming soon. This will generate a comprehensive analytics report.")
+  }
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -37,11 +94,21 @@ export default function AnalyticsPage() {
           <p className="text-muted-foreground mt-1">Data insights and reporting</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" className="glass-subtle">
+          <Button 
+            variant="outline" 
+            className="glass-subtle"
+            onClick={() => setDateRangeDialogOpen(true)}
+          >
             <Calendar className="h-4 w-4 mr-2" />
-            Date Range
+            {dateRange.start && dateRange.end 
+              ? `${format(dateRange.start, "MMM dd")} - ${format(dateRange.end, "MMM dd")}`
+              : "Date Range"
+            }
           </Button>
-          <Button className="glass-strong border-white/30 dark:border-slate-700/30">
+          <Button 
+            className="glass-strong border-white/30 dark:border-slate-700/30"
+            onClick={handleExportPDF}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </Button>
@@ -147,11 +214,47 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
-              <div className="text-center">
-                <p className="text-sm">Sales chart will be displayed here</p>
+            {revenueTrend && revenueTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenueTrend}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: 'currentColor', fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis 
+                    tick={{ fill: 'currentColor', fontSize: 12 }}
+                    className="text-muted-foreground"
+                    tickFormatter={(value) => formatCurrency(value)}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    name="Revenue"
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
+                <div className="text-center">
+                  <p className="text-sm">No sales data available</p>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -167,20 +270,36 @@ export default function AnalyticsPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : teamPerformance && teamPerformance.length > 0 ? (
-              <div className="space-y-4">
-                {teamPerformance.map((member: any) => (
-                  <div key={member.userId} className="flex items-center justify-between p-3 bg-white/20 dark:bg-slate-800/20 rounded-lg">
-                    <div>
-                      <p className="font-medium text-foreground">{member.userName || "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground">{member.dealsClosed || 0} deals closed</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">{formatCurrency(member.totalRevenue || 0)}</p>
-                      <p className="text-xs text-muted-foreground">Total revenue</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={teamPerformance}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="userName" 
+                    tick={{ fill: 'currentColor', fontSize: 12 }}
+                    className="text-muted-foreground"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fill: 'currentColor', fontSize: 12 }}
+                    className="text-muted-foreground"
+                    tickFormatter={(value) => formatCurrency(value)}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Legend />
+                  <Bar dataKey="totalRevenue" fill="#3b82f6" name="Total Revenue" />
+                  <Bar dataKey="dealsClosed" fill="#10b981" name="Deals Closed" />
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
               <div className="h-80 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
                 <div className="text-center">
@@ -191,6 +310,125 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Additional Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="glass-silver border-white/30 dark:border-slate-700/30">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Lead Sources
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sourcesLoading ? (
+              <div className="h-80 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : leadSources && leadSources.sources && leadSources.sources.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={leadSources.sources}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {leadSources.sources.map((entry: any, index: number) => {
+                      const colors = [
+                        '#3b82f6', // blue
+                        '#8b5cf6', // purple
+                        '#ec4899', // pink
+                        '#f59e0b', // amber
+                        '#10b981', // green
+                        '#ef4444', // red
+                        '#06b6d4', // cyan
+                        '#84cc16', // lime
+                      ]
+                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
+                <div className="text-center">
+                  <p className="text-sm">No lead source data available</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="glass-silver border-white/30 dark:border-slate-700/30">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Pipeline Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pipelineDistribution && pipelineDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={pipelineDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="stage" 
+                    tick={{ fill: 'currentColor', fontSize: 12 }}
+                    className="text-muted-foreground"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fill: 'currentColor', fontSize: 12 }}
+                    className="text-muted-foreground"
+                    tickFormatter={(value) => formatCurrency(value)}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Legend />
+                  <Bar dataKey="value" fill="#8b5cf6" name="Deal Value" />
+                  <Bar dataKey="count" fill="#10b981" name="Deal Count" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
+                <div className="text-center">
+                  <p className="text-sm">No pipeline data available</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Date Range Dialog */}
+      <DateRangeDialog
+        open={dateRangeDialogOpen}
+        onOpenChange={setDateRangeDialogOpen}
+        onApply={handleDateRangeApply}
+        initialStartDate={dateRange.start}
+        initialEndDate={dateRange.end}
+      />
     </div>
   )
 }

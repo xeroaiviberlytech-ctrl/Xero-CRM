@@ -1,11 +1,94 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { User, Bell, Shield, Users } from "lucide-react"
+import { trpc } from "@/lib/trpc/react"
+import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function SettingsPage() {
+  const { user } = useAuth()
+  const { data: currentUser, refetch } = trpc.users.getCurrent.useQuery()
+  const updateProfile = trpc.users.updateProfile.useMutation({
+    onSuccess: () => {
+      toast.success("Profile updated successfully")
+      refetch()
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update profile")
+    },
+  })
+
+  const [profileData, setProfileData] = useState({
+    name: currentUser?.name || "",
+    email: currentUser?.email || "",
+    phone: "", // Not in schema, placeholder
+  })
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+
+  const [notifications, setNotifications] = useState({
+    email: false,
+    push: false,
+  })
+
+  // Update profile data when currentUser loads
+  if (currentUser && profileData.name !== currentUser.name) {
+    setProfileData({
+      name: currentUser.name || "",
+      email: currentUser.email || "",
+      phone: "",
+    })
+  }
+
+  const handleSaveProfile = () => {
+    updateProfile.mutate({
+      name: profileData.name,
+    })
+  }
+
+  const handleChangePhoto = () => {
+    // TODO: Implement photo upload
+    toast.info("Photo upload functionality coming soon")
+  }
+
+  const handleUpdatePassword = () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      toast.error("Please fill in all password fields")
+      return
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match")
+      return
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters")
+      return
+    }
+    // TODO: Implement password update via Supabase
+    toast.info("Password update functionality coming soon. This will require Supabase auth integration.")
+  }
+
+  const handleSetup2FA = () => {
+    // TODO: Implement 2FA setup
+    toast.info("Two-factor authentication setup coming soon")
+  }
+
+  const handleToggleNotification = (type: "email" | "push") => {
+    setNotifications(prev => ({
+      ...prev,
+      [type]: !prev[type]
+    }))
+    toast.success(`${type === "email" ? "Email" : "Push"} notifications ${notifications[type] ? "disabled" : "enabled"}`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -33,7 +116,11 @@ export default function SettingsPage() {
               AU
             </div>
             <div>
-              <Button variant="outline" className="glass-subtle">
+              <Button 
+                variant="outline" 
+                className="glass-subtle"
+                onClick={handleChangePhoto}
+              >
                 Change Photo
               </Button>
               <p className="text-xs text-muted-foreground mt-1">
@@ -46,7 +133,11 @@ export default function SettingsPage() {
               <label className="text-sm font-medium text-foreground mb-1 block">
                 Full Name
               </label>
-              <Input defaultValue="Admin User" className="bg-white/40 dark:bg-slate-800/40 text-foreground" />
+              <Input 
+                value={profileData.name}
+                onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                className="bg-white/40 dark:bg-slate-800/40 text-foreground" 
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">
@@ -54,24 +145,41 @@ export default function SettingsPage() {
               </label>
               <Input
                 type="email"
-                defaultValue="admin@xerocrm.com"
-                className="bg-white/40 dark:bg-slate-800/40 text-foreground"
+                value={profileData.email}
+                disabled
+                className="bg-white/40 dark:bg-slate-800/40 text-foreground opacity-60"
               />
+              <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">
                 Phone
               </label>
-              <Input defaultValue="+1 (555) 123-4567" className="bg-white/40 dark:bg-slate-800/40 text-foreground" />
+              <Input 
+                value={profileData.phone}
+                onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                placeholder="+1 (555) 123-4567"
+                className="bg-white/40 dark:bg-slate-800/40 text-foreground" 
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">
                 Role
               </label>
-              <Input defaultValue="Administrator" className="bg-white/40 dark:bg-slate-800/40 text-foreground" />
+              <Input 
+                value={currentUser?.role === "admin" ? "Administrator" : "User"}
+                disabled
+                className="bg-white/40 dark:bg-slate-800/40 text-foreground opacity-60"
+              />
             </div>
           </div>
-          <Button className="mt-4">Save Changes</Button>
+          <Button 
+            className="mt-4"
+            onClick={handleSaveProfile}
+            disabled={updateProfile.isPending}
+          >
+            {updateProfile.isPending ? "Saving..." : "Save Changes"}
+          </Button>
         </CardContent>
       </Card>
 
@@ -96,8 +204,13 @@ export default function SettingsPage() {
                 Receive email updates about your account
               </p>
             </div>
-            <Button variant="outline" size="sm" className="glass-subtle">
-              Enable
+            <Button 
+              variant={notifications.email ? "default" : "outline"} 
+              size="sm" 
+              className={notifications.email ? "" : "glass-subtle"}
+              onClick={() => handleToggleNotification("email")}
+            >
+              {notifications.email ? "Disable" : "Enable"}
             </Button>
           </div>
           <div className="flex items-center justify-between">
@@ -107,8 +220,13 @@ export default function SettingsPage() {
                 Receive push notifications in your browser
               </p>
             </div>
-            <Button variant="outline" size="sm" className="glass-subtle">
-              Enable
+            <Button 
+              variant={notifications.push ? "default" : "outline"} 
+              size="sm" 
+              className={notifications.push ? "" : "glass-subtle"}
+              onClick={() => handleToggleNotification("push")}
+            >
+              {notifications.push ? "Disable" : "Enable"}
             </Button>
           </div>
         </CardContent>
@@ -135,7 +253,11 @@ export default function SettingsPage() {
                 Add an extra layer of security to your account
               </p>
             </div>
-            <Button variant="outline" className="glass-subtle">
+            <Button 
+              variant="outline" 
+              className="glass-subtle"
+              onClick={handleSetup2FA}
+            >
               Setup 2FA
             </Button>
           </div>
@@ -147,20 +269,31 @@ export default function SettingsPage() {
               <Input
                 type="password"
                 placeholder="Current password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                 className="bg-white/40 dark:bg-slate-800/40 text-foreground"
               />
               <Input
                 type="password"
                 placeholder="New password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                 className="bg-white/40 dark:bg-slate-800/40 text-foreground"
               />
               <Input
                 type="password"
                 placeholder="Confirm new password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                 className="bg-white/40 dark:bg-slate-800/40 text-foreground"
               />
             </div>
-            <Button className="mt-4">Update Password</Button>
+            <Button 
+              className="mt-4"
+              onClick={handleUpdatePassword}
+            >
+              Update Password
+            </Button>
           </div>
         </CardContent>
       </Card>

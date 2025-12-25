@@ -169,7 +169,7 @@ export const tasksRouter = createTRPCRouter({
         status: z.enum(["todo", "in-progress", "completed"]).default("todo"),
         priority: z.enum(["low", "medium", "high"]).default("medium"),
         category: z.string().optional().nullable(),
-        dueDate: z.date().optional().nullable(),
+        dueDate: z.coerce.date().optional().nullable(),
         assignedToId: z.string().optional().nullable(),
       })
     )
@@ -231,7 +231,7 @@ export const tasksRouter = createTRPCRouter({
         status: z.enum(["todo", "in-progress", "completed"]).optional(),
         priority: z.enum(["low", "medium", "high"]).optional(),
         category: z.string().optional().nullable(),
-        dueDate: z.date().optional().nullable(),
+        dueDate: z.coerce.date().optional().nullable(),
         assignedToId: z.string().optional(),
       })
     )

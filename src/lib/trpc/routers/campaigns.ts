@@ -101,8 +101,8 @@ export const campaignsRouter = createTRPCRouter({
         description: z.string().optional().nullable(),
         type: z.string().min(1, "Campaign type is required"), // email, social, sms, etc.
         status: z.enum(["draft", "active", "paused", "completed"]).default("draft"),
-        startDate: z.date().optional().nullable(),
-        endDate: z.date().optional().nullable(),
+        startDate: z.coerce.date().optional().nullable(),
+        endDate: z.coerce.date().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -158,8 +158,8 @@ export const campaignsRouter = createTRPCRouter({
         description: z.string().optional().nullable(),
         type: z.string().optional(),
         status: z.enum(["draft", "active", "paused", "completed"]).optional(),
-        startDate: z.date().optional().nullable(),
-        endDate: z.date().optional().nullable(),
+        startDate: z.coerce.date().optional().nullable(),
+        endDate: z.coerce.date().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

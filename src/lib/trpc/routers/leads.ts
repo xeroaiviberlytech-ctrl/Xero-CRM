@@ -337,7 +337,7 @@ export const leadsRouter = createTRPCRouter({
         value: z.number().positive(),
         stage: z.enum(["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]),
         probability: z.number().int().min(0).max(100).default(0),
-        expectedClose: z.date().optional().nullable(),
+        expectedClose: z.coerce.date().optional().nullable(),
         notes: z.string().optional().nullable(),
       })
     )

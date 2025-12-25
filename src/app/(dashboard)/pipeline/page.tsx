@@ -8,6 +8,7 @@ import { IndianRupee, Calendar, User, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/react"
 import { format } from "date-fns"
+import { AddDealDialog } from "@/components/dialogs/add-deal-dialog"
 
 const stages = [
   { id: "prospecting", name: "Prospecting", color: "hsl(230, 100%, 58%)" },
@@ -19,10 +20,17 @@ const stages = [
 
 export default function PipelinePage() {
   const [draggedDealId, setDraggedDealId] = useState<string | null>(null)
+  const [dealDialogOpen, setDealDialogOpen] = useState(false)
   
-  // Fetch deals grouped by stage
-  const { data: dealsByStageData, isLoading } = trpc.deals.getByStage.useQuery()
-  const { data: stageStats } = trpc.deals.getStageStats.useQuery()
+  // Fetch deals grouped by stage - optimized with caching
+  const { data: dealsByStageData, isLoading } = trpc.deals.getByStage.useQuery(
+    undefined,
+    { staleTime: 30000 }
+  )
+  const { data: stageStats } = trpc.deals.getStageStats.useQuery(
+    undefined,
+    { staleTime: 30000 }
+  )
   const utils = trpc.useUtils()
   
   // Mutation to update deal stage
@@ -102,7 +110,10 @@ export default function PipelinePage() {
           <h1 className="text-3xl font-bold text-foreground">Sales Pipeline</h1>
           <p className="text-muted-foreground mt-1">Drag and drop deals to update stages</p>
         </div>
-        <Button className="glass-strong border-white/30 dark:border-slate-700/30">
+        <Button 
+          className="glass-strong border-white/30 dark:border-slate-700/30"
+          onClick={() => setDealDialogOpen(true)}
+        >
           Add New Deal
         </Button>
       </div>
@@ -221,6 +232,9 @@ export default function PipelinePage() {
           </div>
         ))}
       </div>
+
+      {/* Add Deal Dialog */}
+      <AddDealDialog open={dealDialogOpen} onOpenChange={setDealDialogOpen} />
     </div>
   )
 }

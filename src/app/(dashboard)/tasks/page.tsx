@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/react"
 import { format } from "date-fns"
+import { AddTaskDialog } from "@/components/dialogs/add-task-dialog"
 
 // Map API status to UI status
 const statusMap = {
@@ -41,10 +42,24 @@ const statusColors = {
 export default function TasksPage() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<"all" | "todo" | "in-progress" | "completed">("all")
 
-  // Fetch tasks grouped by status
-  const { data: tasksByStatusData, isLoading } = trpc.tasks.getByStatus.useQuery()
-  const { data: taskStats } = trpc.tasks.getStats.useQuery()
+  // Fetch tasks grouped by status with filter - optimized with caching
+  const { data: tasksByStatusData, isLoading } = trpc.tasks.getByStatus.useQuery(
+    undefined,
+    { staleTime: 30000 }
+  )
+  const { data: taskStats } = trpc.tasks.getStats.useQuery(
+    undefined,
+    { staleTime: 30000 }
+  )
+  const { data: filteredTasks } = trpc.tasks.list.useQuery(
+    {
+      status: statusFilter === "all" ? "all" : statusFilter,
+    },
+    { staleTime: 30000, enabled: false } // Don't fetch unless needed
+  )
   const utils = trpc.useUtils()
 
   // Mutation to update task status
@@ -77,10 +92,26 @@ export default function TasksPage() {
     const grouped: Record<string, any[]> = {}
     statusColumns.forEach((uiStatus) => {
       const apiStatus = apiStatusMap[uiStatus]
-      grouped[uiStatus] = tasksByStatusData[apiStatus] || []
+      let tasks = tasksByStatusData[apiStatus] || []
+      
+      // Apply status filter if not "all"
+      if (statusFilter !== "all" && apiStatus !== statusFilter) {
+        tasks = []
+      }
+      
+      // Apply search filter
+      if (searchQuery.length > 0) {
+        tasks = tasks.filter((task: any) => 
+          task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      }
+      
+      grouped[uiStatus] = tasks
     })
     return grouped
-  }, [tasksByStatusData])
+  }, [tasksByStatusData, statusFilter, searchQuery])
 
   const handleDragStart = useCallback((taskId: string) => {
     setDraggedTaskId(taskId)
@@ -133,7 +164,10 @@ export default function TasksPage() {
           <h1 className="text-3xl font-bold text-foreground">Tasks</h1>
           <p className="text-muted-foreground mt-1">Drag and drop tasks to update status</p>
         </div>
-        <Button className="glass-strong border-white/30 dark:border-slate-700/30">
+        <Button 
+          className="glass-strong border-white/30 dark:border-slate-700/30"
+          onClick={() => setTaskDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Task
         </Button>
@@ -191,16 +225,36 @@ export default function TasksPage() {
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant={statusFilter === "all" ? "default" : "outline"} 
+            size="sm" 
+            className={statusFilter === "all" ? "" : "glass-subtle border-white/30 dark:border-slate-700/30"}
+            onClick={() => setStatusFilter("all")}
+          >
             All
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant={statusFilter === "todo" ? "default" : "outline"} 
+            size="sm" 
+            className={statusFilter === "todo" ? "" : "glass-subtle border-white/30 dark:border-slate-700/30"}
+            onClick={() => setStatusFilter("todo")}
+          >
             To Do
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant={statusFilter === "in-progress" ? "default" : "outline"} 
+            size="sm" 
+            className={statusFilter === "in-progress" ? "" : "glass-subtle border-white/30 dark:border-slate-700/30"}
+            onClick={() => setStatusFilter("in-progress")}
+          >
             In Progress
           </Button>
-          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+          <Button 
+            variant={statusFilter === "completed" ? "default" : "outline"} 
+            size="sm" 
+            className={statusFilter === "completed" ? "" : "glass-subtle border-white/30 dark:border-slate-700/30"}
+            onClick={() => setStatusFilter("completed")}
+          >
             Completed
           </Button>
         </div>
@@ -293,6 +347,9 @@ export default function TasksPage() {
           </div>
         ))}
       </div>
+
+      {/* Add Task Dialog */}
+      <AddTaskDialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen} />
     </div>
   )
 }

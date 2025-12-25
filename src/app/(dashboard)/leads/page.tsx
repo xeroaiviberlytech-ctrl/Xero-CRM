@@ -13,18 +13,43 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Search, Filter, Star, MoreVertical, Loader2 } from "lucide-react"
+import { Plus, Search, Filter, Star, MoreVertical, Loader2, Eye, Edit, Trash2 } from "lucide-react"
 import { trpc } from "@/lib/trpc/react"
 import { formatDistanceToNow } from "date-fns"
+import { AddLeadDialog } from "@/components/dialogs/add-lead-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { toast } from "sonner"
 
 export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<string | null>(null)
   const [filter, setFilter] = useState<"all" | "hot" | "warm" | "cold">("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [leadDialogOpen, setLeadDialogOpen] = useState(false)
 
-  // Fetch leads with filters
-  const { data: leadsData, isLoading } = trpc.leads.list.useQuery({
-    temperature: filter === "all" ? undefined : filter,
+  // Fetch leads with filters - optimized with caching
+  const { data: leadsData, isLoading } = trpc.leads.list.useQuery(
+    {
+      temperature: filter === "all" ? undefined : filter,
+    },
+    { staleTime: 30000 } // Cache for 30 seconds
+  )
+  const utils = trpc.useUtils()
+  
+  // Delete lead mutation
+  const deleteLead = trpc.leads.delete.useMutation({
+    onSuccess: () => {
+      utils.leads.list.invalidate()
+      toast.success("Lead deleted successfully")
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete lead")
+    },
   })
 
   // Search leads if query is provided
@@ -55,7 +80,10 @@ export default function LeadsPage() {
           <h1 className="text-3xl font-bold text-foreground">Leads</h1>
           <p className="text-muted-foreground mt-1">Manage and track your leads</p>
         </div>
-        <Button className="glass-strong border-white/30 dark:border-slate-700/30">
+        <Button 
+          className="glass-strong border-white/30 dark:border-slate-700/30"
+          onClick={() => setLeadDialogOpen(true)}
+        >
           Add New Lead
         </Button>
       </div>
@@ -194,9 +222,45 @@ export default function LeadsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="hover:bg-white/40 dark:hover:bg-slate-800/40">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="hover:bg-white/40 dark:hover:bg-slate-800/40">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="glass-silver border-white/30 dark:border-slate-700/30">
+                          <DropdownMenuItem 
+                            className="text-foreground cursor-pointer"
+                            onClick={() => setSelectedLead(lead.id)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-foreground cursor-pointer"
+                            onClick={() => {
+                              setSelectedLead(lead.id)
+                              // TODO: Open edit dialog
+                              toast.info("Edit functionality coming soon")
+                            }}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-white/20 dark:bg-slate-700/20" />
+                          <DropdownMenuItem 
+                            className="text-destructive cursor-pointer focus:text-destructive"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete ${lead.company}?`)) {
+                                deleteLead.mutate({ id: lead.id })
+                              }
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -220,6 +284,9 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Add Lead Dialog */}
+      <AddLeadDialog open={leadDialogOpen} onOpenChange={setLeadDialogOpen} />
     </div>
   )
 }

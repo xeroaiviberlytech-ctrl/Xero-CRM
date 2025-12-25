@@ -203,7 +203,7 @@ export const dealsRouter = createTRPCRouter({
         stage: z.enum(["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]),
         probability: z.number().int().min(0).max(100).default(0),
         leadId: z.string().optional().nullable(),
-        expectedClose: z.date().optional().nullable(),
+        expectedClose: z.coerce.date().optional().nullable(),
         notes: z.string().optional().nullable(),
         ownerId: z.string().optional(),
       })
@@ -279,7 +279,7 @@ export const dealsRouter = createTRPCRouter({
         value: z.number().positive().optional(),
         stage: z.enum(["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]).optional(),
         probability: z.number().int().min(0).max(100).optional(),
-        expectedClose: z.date().optional().nullable(),
+        expectedClose: z.coerce.date().optional().nullable(),
         notes: z.string().optional().nullable(),
         ownerId: z.string().optional(),
       })

@@ -6,88 +6,167 @@ export const analyticsRouter = createTRPCRouter({
    * Get dashboard statistics (KPI cards)
    */
   getDashboardStats: protectedProcedure.query(async ({ ctx }) => {
-    // Get total revenue from closed deals
-    const closedDeals = await ctx.prisma.deal.findMany({
-      where: {
-        ownerId: ctx.prismaUser.id,
-        stage: "closed-won",
-      },
-      select: {
-        value: true,
-        createdAt: true,
-      },
-    })
+    // Define date ranges: current period (last 30 days) and previous period (30-60 days ago)
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
 
-    const totalRevenue = closedDeals.reduce((sum, deal) => sum + deal.value, 0)
-
-    // Get active leads count
-    const activeLeads = await ctx.prisma.lead.findMany({
-      where: {
-        assignedToId: ctx.prismaUser.id,
-        status: {
-          not: "lost",
+    // Run all queries in parallel for better performance
+    const [
+      currentRevenueResult,
+      previousRevenueResult,
+      activeLeadsCount,
+      previousPeriodActiveLeads,
+      totalLeads,
+      convertedLeads,
+      previousTotalLeads,
+      previousConvertedLeads,
+      activeCampaigns,
+      previousActiveCampaigns,
+    ] = await Promise.all([
+      // Current period revenue - use aggregation for better performance
+      ctx.prisma.deal.aggregate({
+        where: {
+          ownerId: ctx.prismaUser.id,
+          stage: "closed-won",
+          createdAt: { gte: thirtyDaysAgo },
         },
-      },
-      select: {
-        id: true,
-      },
-    })
+        _sum: { value: true },
+      }),
+      // Previous period revenue
+      ctx.prisma.deal.aggregate({
+        where: {
+          ownerId: ctx.prismaUser.id,
+          stage: "closed-won",
+          createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
+        },
+        _sum: { value: true },
+      }),
+      // Active leads count - current
+      ctx.prisma.lead.count({
+        where: {
+          assignedToId: ctx.prismaUser.id,
+          status: { not: "lost" },
+        },
+      }),
+      // Active leads count - previous period
+      ctx.prisma.lead.count({
+        where: {
+          assignedToId: ctx.prismaUser.id,
+          status: { not: "lost" },
+          createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
+        },
+      }),
+      // Total leads count
+      ctx.prisma.lead.count({
+        where: { assignedToId: ctx.prismaUser.id },
+      }),
+      // Converted leads count
+      ctx.prisma.lead.count({
+        where: {
+          assignedToId: ctx.prismaUser.id,
+          status: "converted",
+        },
+      }),
+      // Previous period total leads
+      ctx.prisma.lead.count({
+        where: {
+          assignedToId: ctx.prismaUser.id,
+          createdAt: { lt: thirtyDaysAgo },
+        },
+      }),
+      // Previous period converted leads
+      ctx.prisma.lead.count({
+        where: {
+          assignedToId: ctx.prismaUser.id,
+          status: "converted",
+          createdAt: { lt: thirtyDaysAgo },
+        },
+      }),
+      // Active campaigns count
+      ctx.prisma.campaign.count({
+        where: {
+          createdById: ctx.prismaUser.id,
+          status: "active",
+        },
+      }),
+      // Previous active campaigns count
+      ctx.prisma.campaign.count({
+        where: {
+          createdById: ctx.prismaUser.id,
+          status: "active",
+          createdAt: { lt: thirtyDaysAgo },
+        },
+      }),
+    ])
 
-    // Calculate conversion rate
-    const totalLeads = await ctx.prisma.lead.count({
-      where: {
-        assignedToId: ctx.prismaUser.id,
-      },
-    })
+    // Calculate values from aggregated results
+    const totalRevenue = currentRevenueResult._sum.value || 0
+    const previousRevenue = previousRevenueResult._sum.value || 0
+    const revenueChange = previousRevenue > 0
+      ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
+      : totalRevenue > 0 ? 100 : 0
 
-    const convertedLeads = await ctx.prisma.lead.count({
-      where: {
-        assignedToId: ctx.prismaUser.id,
-        status: "converted",
-      },
-    })
+    const leadsChange = previousPeriodActiveLeads > 0
+      ? ((activeLeadsCount - previousPeriodActiveLeads) / previousPeriodActiveLeads) * 100
+      : activeLeadsCount > previousPeriodActiveLeads ? 100 : 0
 
     const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0
+    const previousConversionRate = previousTotalLeads > 0
+      ? (previousConvertedLeads / previousTotalLeads) * 100
+      : 0
+    const conversionChange = previousConversionRate > 0
+      ? conversionRate - previousConversionRate
+      : conversionRate > 0 ? conversionRate : 0
 
-    // Get active campaigns count
-    const activeCampaigns = await ctx.prisma.campaign.count({
-      where: {
-        createdById: ctx.prismaUser.id,
-        status: "active",
-      },
-    })
+    const campaignsChange = activeCampaigns - previousActiveCampaigns
 
-    // Calculate percentage changes (simplified - can be enhanced with date ranges)
-    // For now, we'll return static values - can be enhanced later with actual comparisons
-    const revenueChange = "+12.5%" // TODO: Calculate from previous period
-    const leadsChange = "+8.2%" // TODO: Calculate from previous period
-    const conversionChange = "-2.4%" // TODO: Calculate from previous period
-    const campaignsChange = "+3" // TODO: Calculate from previous period
+    // Format changes
+    const formatChange = (value: number, isPercentage: boolean = true): string => {
+      if (isPercentage) {
+        const sign = value >= 0 ? "+" : ""
+        return `${sign}${value.toFixed(1)}%`
+      } else {
+        const sign = value >= 0 ? "+" : ""
+        return `${sign}${value}`
+      }
+    }
+
+    const revenueChangeFormatted = formatChange(revenueChange, true)
+    const leadsChangeFormatted = formatChange(leadsChange, true)
+    const conversionChangeFormatted = formatChange(conversionChange, true)
+    const campaignsChangeFormatted = formatChange(campaignsChange, false)
 
     return {
       totalRevenue: {
         value: totalRevenue,
-        formatted: `₹${(totalRevenue / 100000).toFixed(1)}L`,
-        change: revenueChange,
-        trend: "up" as const,
+        formatted: totalRevenue >= 10000000
+          ? `₹${(totalRevenue / 10000000).toFixed(1)}Cr`
+          : totalRevenue >= 100000
+          ? `₹${(totalRevenue / 100000).toFixed(1)}L`
+          : totalRevenue >= 1000
+          ? `₹${(totalRevenue / 1000).toFixed(1)}k`
+          : `₹${totalRevenue.toFixed(0)}`,
+        change: revenueChangeFormatted,
+        trend: revenueChange >= 0 ? ("up" as const) : ("down" as const),
       },
       activeLeads: {
-        value: activeLeads.length,
-        formatted: activeLeads.length.toLocaleString(),
-        change: leadsChange,
-        trend: "up" as const,
+        value: activeLeadsCount,
+        formatted: activeLeadsCount.toLocaleString(),
+        change: leadsChangeFormatted,
+        trend: leadsChange >= 0 ? ("up" as const) : ("down" as const),
       },
       conversionRate: {
         value: conversionRate,
         formatted: `${conversionRate.toFixed(1)}%`,
-        change: conversionChange,
-        trend: conversionRate > 20 ? ("up" as const) : ("down" as const),
+        change: conversionChangeFormatted,
+        trend: conversionChange >= 0 ? ("up" as const) : ("down" as const),
       },
       activeCampaigns: {
         value: activeCampaigns,
         formatted: activeCampaigns.toString(),
-        change: campaignsChange,
-        trend: "up" as const,
+        change: campaignsChangeFormatted,
+        trend: campaignsChange >= 0 ? ("up" as const) : ("down" as const),
       },
     }
   }),
@@ -105,11 +184,18 @@ export const analyticsRouter = createTRPCRouter({
         .default({})
     )
     .query(async ({ ctx, input }) => {
-      // Get deals grouped by month
+      // Get last 6 months of data
+      const sixMonthsAgo = new Date()
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+
+      // Get deals grouped by month - optimized query
       const deals = await ctx.prisma.deal.findMany({
         where: {
           ownerId: ctx.prismaUser.id,
           stage: "closed-won",
+          createdAt: {
+            gte: sixMonthsAgo,
+          },
         },
         select: {
           value: true,
@@ -141,6 +227,10 @@ export const analyticsRouter = createTRPCRouter({
    * Get pipeline distribution chart data
    */
   getPipelineDistribution: protectedProcedure.query(async ({ ctx }) => {
+    // Use aggregation for better performance - get counts and sums per stage
+    const stages = ["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]
+    
+    // Get all deals with minimal data
     const deals = await ctx.prisma.deal.findMany({
       where: {
         ownerId: ctx.prismaUser.id,
@@ -151,15 +241,18 @@ export const analyticsRouter = createTRPCRouter({
       },
     })
 
-    const stages = ["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]
+    const totalDeals = deals.length
+
+    // Calculate distribution efficiently
     const distribution = stages.map((stage) => {
       const stageDeals = deals.filter((deal) => deal.stage === stage)
       const totalValue = stageDeals.reduce((sum, deal) => sum + deal.value, 0)
       return {
+        name: stage.charAt(0).toUpperCase() + stage.slice(1).replace("-", " "),
         stage,
         value: totalValue,
         count: stageDeals.length,
-        percentage: deals.length > 0 ? (stageDeals.length / deals.length) * 100 : 0,
+        percentage: totalDeals > 0 ? (stageDeals.length / totalDeals) * 100 : 0,
       }
     })
 
