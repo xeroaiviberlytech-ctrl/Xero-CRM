@@ -159,32 +159,81 @@ export default function MarketingPage() {
         <CardContent>
           {campaignPerformance && campaignPerformance.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={campaignPerformance.slice(0, 10)}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <BarChart 
+                data={campaignPerformance.slice(0, 10)}
+                margin={{ top: 5, right: 20, left: 0, bottom: 60 }}
+              >
+                <defs>
+                  <linearGradient id="openRateGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.6}/>
+                  </linearGradient>
+                  <linearGradient id="clickRateGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.6}/>
+                  </linearGradient>
+                  <linearGradient id="conversionRateGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.6}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
                 <XAxis 
                   dataKey="name" 
-                  tick={{ fill: 'currentColor', fontSize: 12 }}
-                  className="text-muted-foreground"
+                  tick={{ fill: 'currentColor', fontSize: 11 }}
+                  stroke="currentColor"
+                  opacity={0.6}
+                  tickLine={false}
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
                 <YAxis 
-                  tick={{ fill: 'currentColor', fontSize: 12 }}
-                  className="text-muted-foreground"
+                  tick={{ fill: 'currentColor', fontSize: 11 }}
+                  stroke="currentColor"
+                  opacity={0.6}
+                  tickLine={false}
+                  tickFormatter={(value) => `${value}%`}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
                     border: '1px solid rgba(0, 0, 0, 0.1)',
                     borderRadius: '8px',
-                    backdropFilter: 'blur(10px)'
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    padding: '8px 12px'
                   }}
+                  formatter={(value: number) => `${value.toFixed(1)}%`}
+                  animationDuration={200}
                 />
-                <Legend />
-                <Bar dataKey="openRate" fill="#3b82f6" name="Open Rate (%)" />
-                <Bar dataKey="clickRate" fill="#8b5cf6" name="Click Rate (%)" />
-                <Bar dataKey="conversionRate" fill="#10b981" name="Conversion Rate (%)" />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                />
+                <Bar 
+                  dataKey="openRate" 
+                  fill="url(#openRateGradient)" 
+                  name="Open Rate (%)"
+                  radius={[8, 8, 0, 0]}
+                  animationDuration={1000}
+                  animationBegin={0}
+                />
+                <Bar 
+                  dataKey="clickRate" 
+                  fill="url(#clickRateGradient)" 
+                  name="Click Rate (%)"
+                  radius={[8, 8, 0, 0]}
+                  animationDuration={1200}
+                  animationBegin={100}
+                />
+                <Bar 
+                  dataKey="conversionRate" 
+                  fill="url(#conversionRateGradient)" 
+                  name="Conversion Rate (%)"
+                  radius={[8, 8, 0, 0]}
+                  animationDuration={1400}
+                  animationBegin={200}
+                />
               </BarChart>
             </ResponsiveContainer>
           ) : (

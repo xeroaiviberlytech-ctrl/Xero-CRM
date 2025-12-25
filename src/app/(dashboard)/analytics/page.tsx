@@ -46,38 +46,73 @@ export default function AnalyticsPage() {
     end: null,
   })
 
-  // Fetch analytics data with caching for better performance
+  // Fetch analytics data with date range filtering
   const { data: dealsClosed, isLoading: dealsLoading } = trpc.analytics.getDealsClosed.useQuery(
-    { period: "quarter" },
+    { 
+      period: "quarter",
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+    },
     { staleTime: 60000 }
   )
   const { data: avgDealSize, isLoading: avgSizeLoading } = trpc.analytics.getAverageDealSize.useQuery(
-    undefined,
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+    },
     { staleTime: 60000 }
   )
   const { data: teamPerformance, isLoading: teamLoading } = trpc.analytics.getTeamPerformance.useQuery(
-    undefined,
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+    },
     { staleTime: 60000 }
   )
   const { data: leadSources, isLoading: sourcesLoading } = trpc.analytics.getLeadSources.useQuery(
-    undefined,
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+    },
     { staleTime: 60000 }
   )
   const { data: revenueTrend } = trpc.analytics.getRevenueTrend.useQuery(
-    undefined,
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+    },
     { staleTime: 60000 }
   )
   const { data: pipelineDistribution } = trpc.analytics.getPipelineDistribution.useQuery(
-    undefined,
+    {
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+    },
     { staleTime: 60000 }
   )
+
+  const utils = trpc.useUtils()
 
   const handleDateRangeApply = (start: Date | null, end: Date | null) => {
     setDateRange({ start, end })
     if (start && end) {
       toast.success(`Date range set: ${format(start, "MMM dd, yyyy")} - ${format(end, "MMM dd, yyyy")}`)
+      // Invalidate all analytics queries to refetch with new date range
+      utils.analytics.getDealsClosed.invalidate()
+      utils.analytics.getAverageDealSize.invalidate()
+      utils.analytics.getTeamPerformance.invalidate()
+      utils.analytics.getLeadSources.invalidate()
+      utils.analytics.getRevenueTrend.invalidate()
+      utils.analytics.getPipelineDistribution.invalidate()
     } else {
       toast.success("Date range cleared")
+      // Invalidate to refetch without date range
+      utils.analytics.getDealsClosed.invalidate()
+      utils.analytics.getAverageDealSize.invalidate()
+      utils.analytics.getTeamPerformance.invalidate()
+      utils.analytics.getLeadSources.invalidate()
+      utils.analytics.getRevenueTrend.invalidate()
+      utils.analytics.getPipelineDistribution.invalidate()
     }
   }
 
@@ -216,35 +251,57 @@ export default function AnalyticsPage() {
           <CardContent>
             {revenueTrend && revenueTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={revenueTrend}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <LineChart 
+                  data={revenueTrend}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                >
+                  <defs>
+                    <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
                   <XAxis 
                     dataKey="month" 
-                    tick={{ fill: 'currentColor', fontSize: 12 }}
-                    className="text-muted-foreground"
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                   />
                   <YAxis 
-                    tick={{ fill: 'currentColor', fontSize: 12 }}
-                    className="text-muted-foreground"
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                     tickFormatter={(value) => formatCurrency(value)}
                   />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       borderRadius: '8px',
-                      backdropFilter: 'blur(10px)'
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      padding: '8px 12px'
                     }}
                     formatter={(value: number) => formatCurrency(value)}
+                    animationDuration={200}
                   />
-                  <Legend />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="line"
+                  />
                   <Line 
                     type="monotone" 
                     dataKey="revenue" 
                     stroke="#3b82f6" 
-                    strokeWidth={2}
+                    strokeWidth={3}
                     name="Revenue"
-                    dot={{ r: 4 }}
+                    dot={{ r: 5, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 7 }}
+                    animationDuration={1000}
+                    animationBegin={0}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -271,33 +328,69 @@ export default function AnalyticsPage() {
               </div>
             ) : teamPerformance && teamPerformance.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={teamPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <BarChart 
+                  data={teamPerformance}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 60 }}
+                >
+                  <defs>
+                    <linearGradient id="revenueBarGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.6}/>
+                    </linearGradient>
+                    <linearGradient id="dealsBarGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.6}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
                   <XAxis 
                     dataKey="userName" 
-                    tick={{ fill: 'currentColor', fontSize: 12 }}
-                    className="text-muted-foreground"
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                     angle={-45}
                     textAnchor="end"
                     height={80}
                   />
                   <YAxis 
-                    tick={{ fill: 'currentColor', fontSize: 12 }}
-                    className="text-muted-foreground"
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                     tickFormatter={(value) => formatCurrency(value)}
                   />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       borderRadius: '8px',
-                      backdropFilter: 'blur(10px)'
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      padding: '8px 12px'
                     }}
                     formatter={(value: number) => formatCurrency(value)}
+                    animationDuration={200}
                   />
-                  <Legend />
-                  <Bar dataKey="totalRevenue" fill="#3b82f6" name="Total Revenue" />
-                  <Bar dataKey="dealsClosed" fill="#10b981" name="Deals Closed" />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                  />
+                  <Bar 
+                    dataKey="totalRevenue" 
+                    fill="url(#revenueBarGradient)" 
+                    name="Total Revenue"
+                    radius={[8, 8, 0, 0]}
+                    animationDuration={1000}
+                    animationBegin={0}
+                  />
+                  <Bar 
+                    dataKey="dealsClosed" 
+                    fill="url(#dealsBarGradient)" 
+                    name="Deals Closed"
+                    radius={[8, 8, 0, 0]}
+                    animationDuration={1200}
+                    animationBegin={100}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -330,12 +423,15 @@ export default function AnalyticsPage() {
                   <Pie
                     data={leadSources.sources}
                     cx="50%"
-                    cy="50%"
+                    cy="45%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={false}
                     outerRadius={100}
+                    innerRadius={50}
                     fill="#8884d8"
                     dataKey="count"
+                    animationDuration={800}
+                    animationBegin={0}
                   >
                     {leadSources.sources.map((entry: any, index: number) => {
                       const colors = [
@@ -353,13 +449,26 @@ export default function AnalyticsPage() {
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       borderRadius: '8px',
-                      backdropFilter: 'blur(10px)'
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      padding: '8px 12px'
+                    }}
+                    animationDuration={200}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    iconType="circle"
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    formatter={(value, entry: any) => {
+                      const data = leadSources.sources.find((d: any) => d.name === value)
+                      const percent = data ? ((data.count / leadSources.total) * 100).toFixed(1) : '0'
+                      return `${value} (${percent}%)`
                     }}
                   />
-                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -381,33 +490,85 @@ export default function AnalyticsPage() {
           <CardContent>
             {pipelineDistribution && pipelineDistribution.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={pipelineDistribution}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <BarChart 
+                  data={pipelineDistribution}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 60 }}
+                >
+                  <defs>
+                    <linearGradient id="pipelineValueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.6}/>
+                    </linearGradient>
+                    <linearGradient id="pipelineCountGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.6}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
                   <XAxis 
-                    dataKey="stage" 
-                    tick={{ fill: 'currentColor', fontSize: 12 }}
-                    className="text-muted-foreground"
+                    dataKey="name" 
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                     angle={-45}
                     textAnchor="end"
                     height={80}
                   />
                   <YAxis 
-                    tick={{ fill: 'currentColor', fontSize: 12 }}
-                    className="text-muted-foreground"
+                    yAxisId="left"
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                     tickFormatter={(value) => formatCurrency(value)}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fill: 'currentColor', fontSize: 11 }}
+                    stroke="currentColor"
+                    opacity={0.6}
+                    tickLine={false}
                   />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       borderRadius: '8px',
-                      backdropFilter: 'blur(10px)'
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      padding: '8px 12px'
                     }}
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'Deal Value') {
+                        return [formatCurrency(value), name]
+                      }
+                      return [value, name]
+                    }}
+                    animationDuration={200}
                   />
-                  <Legend />
-                  <Bar dataKey="value" fill="#8b5cf6" name="Deal Value" />
-                  <Bar dataKey="count" fill="#10b981" name="Deal Count" />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                  />
+                  <Bar 
+                    yAxisId="left"
+                    dataKey="value" 
+                    fill="url(#pipelineValueGradient)" 
+                    name="Deal Value"
+                    radius={[8, 8, 0, 0]}
+                    animationDuration={1000}
+                    animationBegin={0}
+                  />
+                  <Bar 
+                    yAxisId="right"
+                    dataKey="count" 
+                    fill="url(#pipelineCountGradient)" 
+                    name="Deal Count"
+                    radius={[8, 8, 0, 0]}
+                    animationDuration={1200}
+                    animationBegin={100}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

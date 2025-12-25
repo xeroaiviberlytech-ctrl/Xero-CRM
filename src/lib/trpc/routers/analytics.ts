@@ -179,14 +179,26 @@ export const analyticsRouter = createTRPCRouter({
       z
         .object({
           period: z.enum(["month", "quarter", "year"]).optional().default("month"),
+          startDate: z.coerce.date().optional().nullable(),
+          endDate: z.coerce.date().optional().nullable(),
         })
         .optional()
         .default({})
     )
     .query(async ({ ctx, input }) => {
-      // Get last 6 months of data
-      const sixMonthsAgo = new Date()
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+      // Determine date range
+      let startDate: Date
+      let endDate = new Date()
+
+      if (input?.startDate && input?.endDate) {
+        // Use provided date range
+        startDate = input.startDate
+        endDate = input.endDate
+      } else {
+        // Default to last 6 months
+        startDate = new Date()
+        startDate.setMonth(startDate.getMonth() - 6)
+      }
 
       // Get deals grouped by month - optimized query
       const deals = await ctx.prisma.deal.findMany({
@@ -194,7 +206,8 @@ export const analyticsRouter = createTRPCRouter({
           ownerId: ctx.prismaUser.id,
           stage: "closed-won",
           createdAt: {
-            gte: sixMonthsAgo,
+            gte: startDate,
+            lte: endDate,
           },
         },
         select: {
@@ -226,20 +239,40 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get pipeline distribution chart data
    */
-  getPipelineDistribution: protectedProcedure.query(async ({ ctx }) => {
-    // Use aggregation for better performance - get counts and sums per stage
-    const stages = ["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]
-    
-    // Get all deals with minimal data
-    const deals = await ctx.prisma.deal.findMany({
-      where: {
+  getPipelineDistribution: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.coerce.date().optional().nullable(),
+          endDate: z.coerce.date().optional().nullable(),
+        })
+        .optional()
+        .default({})
+    )
+    .query(async ({ ctx, input }) => {
+      // Use aggregation for better performance - get counts and sums per stage
+      const stages = ["prospecting", "qualified", "proposal", "negotiation", "closed-won", "closed-lost"]
+      
+      // Build where clause with optional date range
+      const where: any = {
         ownerId: ctx.prismaUser.id,
-      },
-      select: {
-        stage: true,
-        value: true,
-      },
-    })
+      }
+
+      if (input?.startDate && input?.endDate) {
+        where.createdAt = {
+          gte: input.startDate,
+          lte: input.endDate,
+        }
+      }
+      
+      // Get all deals with minimal data
+      const deals = await ctx.prisma.deal.findMany({
+        where,
+        select: {
+          stage: true,
+          value: true,
+        },
+      })
 
     const totalDeals = deals.length
 
@@ -335,26 +368,36 @@ export const analyticsRouter = createTRPCRouter({
     .input(
       z.object({
         period: z.enum(["week", "month", "quarter", "year"]).optional().default("quarter"),
+        startDate: z.coerce.date().optional().nullable(),
+        endDate: z.coerce.date().optional().nullable(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const now = new Date()
       let startDate: Date
+      let endDate = new Date()
 
-      switch (input.period) {
-        case "week":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-          break
-        case "month":
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1)
-          break
-        case "quarter":
-          const quarter = Math.floor(now.getMonth() / 3)
-          startDate = new Date(now.getFullYear(), quarter * 3, 1)
-          break
-        case "year":
-          startDate = new Date(now.getFullYear(), 0, 1)
-          break
+      if (input.startDate && input.endDate) {
+        // Use provided date range
+        startDate = input.startDate
+        endDate = input.endDate
+      } else {
+        // Use period-based calculation
+        const now = new Date()
+        switch (input.period) {
+          case "week":
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            break
+          case "month":
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+            break
+          case "quarter":
+            const quarter = Math.floor(now.getMonth() / 3)
+            startDate = new Date(now.getFullYear(), quarter * 3, 1)
+            break
+          case "year":
+            startDate = new Date(now.getFullYear(), 0, 1)
+            break
+        }
       }
 
       const deals = await ctx.prisma.deal.findMany({
@@ -363,6 +406,7 @@ export const analyticsRouter = createTRPCRouter({
           stage: "closed-won",
           createdAt: {
             gte: startDate,
+            lte: endDate,
           },
         },
         select: {
@@ -383,16 +427,35 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get average deal size
    */
-  getAverageDealSize: protectedProcedure.query(async ({ ctx }) => {
-    const deals = await ctx.prisma.deal.findMany({
-      where: {
+  getAverageDealSize: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.coerce.date().optional().nullable(),
+          endDate: z.coerce.date().optional().nullable(),
+        })
+        .optional()
+        .default({})
+    )
+    .query(async ({ ctx, input }) => {
+      const where: any = {
         ownerId: ctx.prismaUser.id,
         stage: "closed-won",
-      },
-      select: {
-        value: true,
-      },
-    })
+      }
+
+      if (input?.startDate && input?.endDate) {
+        where.createdAt = {
+          gte: input.startDate,
+          lte: input.endDate,
+        }
+      }
+
+      const deals = await ctx.prisma.deal.findMany({
+        where,
+        select: {
+          value: true,
+        },
+      })
 
     if (deals.length === 0) {
       return {
@@ -414,25 +477,44 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get team performance metrics
    */
-  getTeamPerformance: protectedProcedure.query(async ({ ctx }) => {
-    // Get all users (if admin) or just current user
-    const users = ctx.prismaUser.role === "admin"
-      ? await ctx.prisma.user.findMany({
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+  getTeamPerformance: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.coerce.date().optional().nullable(),
+          endDate: z.coerce.date().optional().nullable(),
         })
-      : [ctx.prismaUser]
+        .optional()
+        .default({})
+    )
+    .query(async ({ ctx, input }) => {
+      // Get all users (if admin) or just current user
+      const users = ctx.prismaUser.role === "admin"
+        ? await ctx.prisma.user.findMany({
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          })
+        : [ctx.prismaUser]
 
-    const performance = await Promise.all(
-      users.map(async (user) => {
+      const performance = await Promise.all(
+        users.map(async (user) => {
+        const dealWhere: any = {
+          ownerId: user.id,
+          stage: "closed-won",
+        }
+
+        if (input?.startDate && input?.endDate) {
+          dealWhere.createdAt = {
+            gte: input.startDate,
+            lte: input.endDate,
+          }
+        }
+
         const deals = await ctx.prisma.deal.findMany({
-          where: {
-            ownerId: user.id,
-            stage: "closed-won",
-          },
+          where: dealWhere,
           select: {
             value: true,
           },
@@ -468,20 +550,39 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get lead sources breakdown
    */
-  getLeadSources: protectedProcedure.query(async ({ ctx }) => {
-    // Note: This requires a 'source' field in Lead model
-    // For now, we'll return a placeholder structure
-    // You can enhance this when you add source tracking to leads
+  getLeadSources: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.coerce.date().optional().nullable(),
+          endDate: z.coerce.date().optional().nullable(),
+        })
+        .optional()
+        .default({})
+    )
+    .query(async ({ ctx, input }) => {
+      // Note: This requires a 'source' field in Lead model
+      // For now, we'll return a placeholder structure
+      // You can enhance this when you add source tracking to leads
 
-    const leads = await ctx.prisma.lead.findMany({
-      where: {
+      const where: any = {
         assignedToId: ctx.prismaUser.id,
-      },
-      select: {
-        id: true,
-        // source: true, // Uncomment when source field is added
-      },
-    })
+      }
+
+      if (input?.startDate && input?.endDate) {
+        where.createdAt = {
+          gte: input.startDate,
+          lte: input.endDate,
+        }
+      }
+
+      const leads = await ctx.prisma.lead.findMany({
+        where,
+        select: {
+          id: true,
+          // source: true, // Uncomment when source field is added
+        },
+      })
 
     // Placeholder - group by source when available
     return {

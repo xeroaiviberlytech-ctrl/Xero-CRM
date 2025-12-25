@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -35,6 +35,14 @@ export function DateRangeDialog({
   const [endDate, setEndDate] = useState(
     initialEndDate ? new Date(initialEndDate).toISOString().split('T')[0] : ""
   )
+
+  // Reset form when dialog opens/closes or initial dates change
+  useEffect(() => {
+    if (open) {
+      setStartDate(initialStartDate ? new Date(initialStartDate).toISOString().split('T')[0] : "")
+      setEndDate(initialEndDate ? new Date(initialEndDate).toISOString().split('T')[0] : "")
+    }
+  }, [open, initialStartDate, initialEndDate])
 
   const handleApply = () => {
     const start = startDate ? new Date(startDate) : null

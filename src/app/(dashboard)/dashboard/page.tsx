@@ -208,45 +208,74 @@ export default function DashboardPage() {
                     <span className="text-sm text-foreground">Target</span>
                   </div>
                 </div>
-                <MemoizedChart height={250}>
-                  <LineChart data={revenueTrend}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <MemoizedChart height={280}>
+                  <LineChart 
+                    data={revenueTrend}
+                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                  >
+                    <defs>
+                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="targetGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
                     <XAxis 
                       dataKey="month" 
-                      tick={{ fill: 'currentColor', fontSize: 12 }}
-                      className="text-muted-foreground"
+                      tick={{ fill: 'currentColor', fontSize: 11 }}
+                      stroke="currentColor"
+                      opacity={0.6}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fill: 'currentColor', fontSize: 12 }}
-                      className="text-muted-foreground"
+                      tick={{ fill: 'currentColor', fontSize: 11 }}
+                      stroke="currentColor"
+                      opacity={0.6}
+                      tickLine={false}
                       tickFormatter={(value) => formatCurrency(value)}
                     />
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.98)',
                         border: '1px solid rgba(0, 0, 0, 0.1)',
                         borderRadius: '8px',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        padding: '8px 12px'
                       }}
                       formatter={(value: number) => formatCurrency(value)}
+                      animationDuration={200}
                     />
-                    <Legend />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="line"
+                    />
                     <Line 
                       type="monotone" 
                       dataKey="revenue" 
                       stroke="#3b82f6" 
-                      strokeWidth={2}
+                      strokeWidth={3}
                       name="Revenue"
-                      dot={{ r: 4 }}
+                      dot={{ r: 5, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 7 }}
+                      animationDuration={1000}
+                      animationBegin={0}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="target" 
                       stroke="#f97316" 
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
+                      strokeWidth={2.5}
+                      strokeDasharray="6 4"
                       name="Target"
-                      dot={{ r: 4 }}
+                      dot={{ r: 4, fill: '#f97316', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6 }}
+                      animationDuration={1200}
+                      animationBegin={100}
                     />
                   </LineChart>
                 </MemoizedChart>
@@ -270,18 +299,21 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {pipelineDistribution && pipelineDistribution.length > 0 ? (
-              <MemoizedChart height={250}>
+              <MemoizedChart height={280}>
                 <PieChart>
                   <Pie
                     data={pipelineDistribution}
                     cx="50%"
-                    cy="50%"
+                    cy="45%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
+                    label={false}
+                    outerRadius={90}
+                    innerRadius={40}
                     fill="#8884d8"
                     dataKey="value"
                     nameKey="name"
+                    animationDuration={800}
+                    animationBegin={0}
                   >
                     {pipelineDistribution.map((entry: any, index: number) => {
                       const colors = [
@@ -297,12 +329,26 @@ export default function DashboardPage() {
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       borderRadius: '8px',
-                      backdropFilter: 'blur(10px)'
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      padding: '8px 12px'
                     }}
                     formatter={(value: number) => formatCurrency(value)}
+                    animationDuration={200}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    iconType="circle"
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    formatter={(value, entry: any) => {
+                      const data = pipelineDistribution.find((d: any) => d.name === value)
+                      const percent = data ? ((data.value / pipelineDistribution.reduce((sum: number, d: any) => sum + d.value, 0)) * 100).toFixed(1) : '0'
+                      return `${value} (${percent}%)`
+                    }}
                   />
                 </PieChart>
               </MemoizedChart>

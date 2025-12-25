@@ -33,6 +33,21 @@ export function DashboardHeader() {
   const [dealDialogOpen, setDealDialogOpen] = useState(false)
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false)
+
+  // Fetch recent activities for notification count
+  const { data: recentActivities } = trpc.analytics.getRecentActivities.useQuery(
+    { limit: 10 },
+    { staleTime: 30000 }
+  )
+
+  // Calculate notification count (activities from last 24 hours)
+  const notificationCount = recentActivities
+    ? recentActivities.filter((activity) => {
+        const activityDate = new Date(activity.createdAt)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        return activityDate > oneDayAgo
+      }).length
+    : 0
   
   const userInitials = user?.email
     ?.split("@")[0]
@@ -239,22 +254,68 @@ export function DashboardHeader() {
                 className="relative hover:bg-white/40 dark:hover:bg-slate-800/40"
               >
                 <Bell className="h-5 w-5 text-foreground" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-white/40 dark:bg-slate-800/40 flex items-center justify-center text-[10px] font-medium text-foreground">
-                  2
-                </span>
+                {/* Notification Badge - Only show if there are notifications */}
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 dark:bg-red-600 flex items-center justify-center text-[10px] font-semibold text-white shadow-lg border-2 border-background">
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </span>
+                )}
+                {/* Pulse dot indicator when there are unread notifications */}
+                {notificationCount > 0 && (
+                  <span className="absolute top-0.5 right-0.5 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass-silver border-white/30 dark:border-slate-700/30 w-80">
-              <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-foreground">
+                Notifications {notificationCount > 0 && `(${notificationCount})`}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-white/20 dark:bg-slate-700/20" />
               <div className="max-h-96 overflow-y-auto">
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No new notifications</p>
-                  <p className="text-xs mt-1">You're all caught up!</p>
-                </div>
-                {/* TODO: Add real notifications from activity feed */}
+                {recentActivities && recentActivities.length > 0 ? (
+                  <div className="p-2 space-y-2">
+                    {recentActivities.slice(0, 5).map((activity) => {
+                      const activityDate = new Date(activity.createdAt)
+                      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+                      const isRecent = activityDate > oneDayAgo
+                      
+                      return (
+                        <div
+                          key={activity.id}
+                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                            isRecent
+                              ? "bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/20"
+                              : "bg-white/20 dark:bg-slate-800/20 hover:bg-white/40 dark:hover:bg-slate-800/40"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                              {activity.user.initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">{activity.title}</p>
+                              {activity.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                  {activity.description}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                            </div>
+                            {isRecent && (
+                              <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2"></div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No new notifications</p>
+                    <p className="text-xs mt-1">You're all caught up!</p>
+                  </div>
+                )}
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
