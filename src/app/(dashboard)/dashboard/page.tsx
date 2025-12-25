@@ -9,59 +9,105 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
+  Loader2,
 } from "lucide-react"
+import { trpc } from "@/lib/trpc/react"
+import { formatDistanceToNow } from "date-fns"
 
 interface ActivityItem {
-  id: number
+  id: string
   user: string
   userInitials: string
   action: string
   time: string
 }
 
-export default function DashboardPage() {
-  const stats = [
-    {
-      title: "Total Revenue",
-      value: "₹24,83,920",
-      change: "+12.5%",
-      icon: IndianRupee,
-      trend: "up" as const,
-      bgIcon: IndianRupee,
-    },
-    {
-      title: "Active Leads",
-      value: "1,842",
-      change: "+8.2%",
-      icon: Users,
-      trend: "up" as const,
-      bgIcon: Users,
-    },
-    {
-      title: "Conversion Rate",
-      value: "24.8%",
-      change: "-2.4%",
-      icon: Target,
-      trend: "down" as const,
-      bgIcon: Target,
-    },
-    {
-      title: "Active Campaigns",
-      value: "12",
-      change: "+3",
-      icon: BarChart,
-      trend: "up" as const,
-      bgIcon: BarChart,
-    },
-  ]
+// Format currency in Indian format
+function formatCurrency(value: number): string {
+  if (value >= 10000000) {
+    return `₹${(value / 10000000).toFixed(1)}Cr`
+  } else if (value >= 100000) {
+    return `₹${(value / 100000).toFixed(1)}L`
+  } else if (value >= 1000) {
+    return `₹${(value / 1000).toFixed(1)}k`
+  }
+  return `₹${value.toFixed(0)}`
+}
 
-  const recentActivities: ActivityItem[] = [
-    { id: 1, user: "Sarah Chen", userInitials: "SC", action: "closed deal Acme Corp ₹45,000", time: "2 min ago" },
-    { id: 2, user: "Mike Johnson", userInitials: "MJ", action: "added lead TechStart Inc", time: "15 min ago" },
-    { id: 3, user: "Emma Davis", userInitials: "ED", action: "updated pipeline 3 deals", time: "1 hour ago" },
-    { id: 4, user: "Alex Kumar", userInitials: "AK", action: "completed task Follow-up call", time: "2 hours ago" },
-    { id: 5, user: "Lisa Wang", userInitials: "LW", action: "sent proposal Global Solutions ₹32,000", time: "3 hours ago" },
-  ]
+// Get user initials from name
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "U"
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+export default function DashboardPage() {
+  // Fetch dashboard data
+  const { data: dashboardStats, isLoading: statsLoading } = trpc.analytics.getDashboardStats.useQuery()
+  const { data: recentActivities, isLoading: activitiesLoading } = trpc.analytics.getRecentActivities.useQuery({ limit: 5 })
+  const { data: revenueTrend } = trpc.analytics.getRevenueTrend.useQuery()
+  const { data: pipelineDistribution } = trpc.analytics.getPipelineDistribution.useQuery()
+
+  // Format stats from API data
+  const stats = dashboardStats
+    ? [
+        {
+          title: "Total Revenue",
+          value: dashboardStats.totalRevenue.formatted,
+          change: dashboardStats.totalRevenue.change,
+          icon: IndianRupee,
+          trend: dashboardStats.totalRevenue.trend as "up" | "down",
+          bgIcon: IndianRupee,
+        },
+        {
+          title: "Active Leads",
+          value: dashboardStats.activeLeads.value.toLocaleString(),
+          change: dashboardStats.activeLeads.change,
+          icon: Users,
+          trend: dashboardStats.activeLeads.trend as "up" | "down",
+          bgIcon: Users,
+        },
+        {
+          title: "Conversion Rate",
+          value: `${dashboardStats.conversionRate.value}%`,
+          change: dashboardStats.conversionRate.change,
+          icon: Target,
+          trend: dashboardStats.conversionRate.trend as "up" | "down",
+          bgIcon: Target,
+        },
+        {
+          title: "Active Campaigns",
+          value: dashboardStats.activeCampaigns.value.toString(),
+          change: dashboardStats.activeCampaigns.change,
+          icon: BarChart,
+          trend: dashboardStats.activeCampaigns.trend as "up" | "down",
+          bgIcon: BarChart,
+        },
+      ]
+    : []
+
+  // Format activities from API data
+  const formattedActivities: ActivityItem[] = recentActivities
+    ? recentActivities.map((activity) => ({
+        id: activity.id,
+        user: activity.user.name || activity.user.email,
+        userInitials: getInitials(activity.user.name),
+        action: activity.title,
+        time: formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true }),
+      }))
+    : []
+
+  if (statsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -71,38 +117,44 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Welcome back! Here's your CRM overview</p>
         </div>
-        <p className="text-sm text-muted-foreground">Last updated: 2 minutes ago</p>
+        <p className="text-sm text-muted-foreground">Last updated: {formatDistanceToNow(new Date(), { addSuffix: true })}</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
-          const TrendIcon = stat.trend === "up" ? TrendingUp : TrendingDown
-          const trendColor = stat.trend === "up" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-          const BgIcon = stat.bgIcon
-          
-          return (
-            <Card key={stat.title} className="glass-silver border-white/30 dark:border-slate-700/30 relative overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                    <h3 className="text-3xl font-semibold text-foreground">{stat.value}</h3>
-                    <div className="flex items-center gap-1 mt-2">
-                      <TrendIcon className={`h-4 w-4 ${trendColor}`} />
-                      <span className={`text-sm font-medium ${trendColor}`}>
-                        {stat.change}
-                      </span>
+        {stats.length > 0 ? (
+          stats.map((stat) => {
+            const TrendIcon = stat.trend === "up" ? TrendingUp : TrendingDown
+            const trendColor = stat.trend === "up" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+            const BgIcon = stat.bgIcon
+            
+            return (
+              <Card key={stat.title} className="glass-silver border-white/30 dark:border-slate-700/30 relative overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+                      <h3 className="text-3xl font-semibold text-foreground">{stat.value}</h3>
+                      <div className="flex items-center gap-1 mt-2">
+                        <TrendIcon className={`h-4 w-4 ${trendColor}`} />
+                        <span className={`text-sm font-medium ${trendColor}`}>
+                          {stat.change}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="absolute right-4 top-4 opacity-10 dark:opacity-5">
+                      <BgIcon className="h-16 w-16 text-foreground" />
                     </div>
                   </div>
-                  <div className="absolute right-4 top-4 opacity-10 dark:opacity-5">
-                    <BgIcon className="h-16 w-16 text-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+                </CardContent>
+              </Card>
+            )
+          })
+        ) : (
+          <div className="col-span-4 text-center py-8 text-muted-foreground">
+            No data available
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}
@@ -160,24 +212,34 @@ export default function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start gap-3 p-3 hover:bg-white/40 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary flex-shrink-0">
-                  {activity.userInitials}
+          {activitiesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : formattedActivities.length > 0 ? (
+            <div className="space-y-4">
+              {formattedActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-3 p-3 hover:bg-white/40 dark:hover:bg-slate-800/40 rounded-xl transition-colors cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary flex-shrink-0">
+                    {activity.userInitials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {activity.user} {activity.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    {activity.user} {activity.action}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No recent activities
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

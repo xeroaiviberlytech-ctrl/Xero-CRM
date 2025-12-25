@@ -205,7 +205,7 @@ export const dealsRouter = createTRPCRouter({
         leadId: z.string().optional().nullable(),
         expectedClose: z.date().optional().nullable(),
         notes: z.string().optional().nullable(),
-        ownerId: z.string().optional().nullable(),
+        ownerId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -281,7 +281,7 @@ export const dealsRouter = createTRPCRouter({
         probability: z.number().int().min(0).max(100).optional(),
         expectedClose: z.date().optional().nullable(),
         notes: z.string().optional().nullable(),
-        ownerId: z.string().optional().nullable(),
+        ownerId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -306,9 +306,30 @@ export const dealsRouter = createTRPCRouter({
         })
       }
 
+      // Build update data object, filtering out null values
+      const cleanUpdateData: {
+        company?: string
+        notes?: string | null
+        value?: number
+        stage?: "prospecting" | "qualified" | "proposal" | "negotiation" | "closed-won" | "closed-lost"
+        probability?: number
+        expectedClose?: Date | null
+        ownerId?: string
+      } = {}
+
+      if (updateData.company !== undefined) cleanUpdateData.company = updateData.company
+      if (updateData.notes !== undefined) cleanUpdateData.notes = updateData.notes
+      if (updateData.value !== undefined) cleanUpdateData.value = updateData.value
+      if (updateData.stage !== undefined) cleanUpdateData.stage = updateData.stage
+      if (updateData.probability !== undefined) cleanUpdateData.probability = updateData.probability
+      if (updateData.expectedClose !== undefined) cleanUpdateData.expectedClose = updateData.expectedClose
+      if (updateData.ownerId !== undefined && updateData.ownerId !== null) {
+        cleanUpdateData.ownerId = updateData.ownerId
+      }
+
       const deal = await ctx.prisma.deal.update({
         where: { id },
-        data: updateData,
+        data: cleanUpdateData,
         include: {
           owner: {
             select: {

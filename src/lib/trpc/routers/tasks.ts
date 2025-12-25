@@ -232,7 +232,7 @@ export const tasksRouter = createTRPCRouter({
         priority: z.enum(["low", "medium", "high"]).optional(),
         category: z.string().optional().nullable(),
         dueDate: z.date().optional().nullable(),
-        assignedToId: z.string().optional().nullable(),
+        assignedToId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -257,10 +257,31 @@ export const tasksRouter = createTRPCRouter({
         })
       }
 
+      // Build update data object, filtering out null values
+      const cleanUpdateData: {
+        title?: string
+        description?: string | null
+        status?: "todo" | "in-progress" | "completed"
+        priority?: "low" | "medium" | "high"
+        category?: string | null
+        dueDate?: Date | null
+        assignedToId?: string
+      } = {}
+
+      if (updateData.title !== undefined) cleanUpdateData.title = updateData.title
+      if (updateData.description !== undefined) cleanUpdateData.description = updateData.description
+      if (updateData.status !== undefined) cleanUpdateData.status = updateData.status
+      if (updateData.priority !== undefined) cleanUpdateData.priority = updateData.priority
+      if (updateData.category !== undefined) cleanUpdateData.category = updateData.category
+      if (updateData.dueDate !== undefined) cleanUpdateData.dueDate = updateData.dueDate
+      if (updateData.assignedToId !== undefined && updateData.assignedToId !== null) {
+        cleanUpdateData.assignedToId = updateData.assignedToId
+      }
+
       // If reassigning, verify new assignee exists
-      if (updateData.assignedToId) {
+      if (cleanUpdateData.assignedToId) {
         const newAssignee = await ctx.prisma.user.findUnique({
-          where: { id: updateData.assignedToId },
+          where: { id: cleanUpdateData.assignedToId },
         })
 
         if (!newAssignee) {
@@ -273,7 +294,7 @@ export const tasksRouter = createTRPCRouter({
 
       const task = await ctx.prisma.task.update({
         where: { id },
-        data: updateData,
+        data: cleanUpdateData,
         include: {
           assignedTo: {
             select: {
