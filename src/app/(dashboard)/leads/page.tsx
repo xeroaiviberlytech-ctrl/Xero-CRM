@@ -13,55 +13,39 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Search, Filter, Star, MoreVertical } from "lucide-react"
-
-const mockLeads = [
-  {
-    id: 1,
-    company: "Acme Corporation",
-    contactCount: 2,
-    primaryContact: "John Smith",
-    email: "john@acme.com",
-    temperature: "hot" as const,
-    dealValue: 45000,
-    source: "referral",
-    lastContact: "2024-01-15",
-    rating: 5,
-  },
-  {
-    id: 2,
-    company: "TechStart Inc",
-    contactCount: 1,
-    primaryContact: "Sarah Johnson",
-    email: "sarah@techstart.io",
-    temperature: "warm" as const,
-    dealValue: 32000,
-    source: "linkedin",
-    lastContact: "2024-01-14",
-    rating: 4,
-  },
-  {
-    id: 3,
-    company: "Global Solutions",
-    contactCount: 1,
-    primaryContact: "Mike Chen",
-    email: "mike@global.com",
-    temperature: "cold" as const,
-    dealValue: 18000,
-    source: "cold_outreach",
-    lastContact: "2024-01-10",
-    rating: 3,
-  },
-]
+import { Plus, Search, Filter, Star, MoreVertical, Loader2 } from "lucide-react"
+import { trpc } from "@/lib/trpc/react"
+import { formatDistanceToNow } from "date-fns"
 
 export default function LeadsPage() {
-  const [selectedLead, setSelectedLead] = useState<number | null>(null)
+  const [selectedLead, setSelectedLead] = useState<string | null>(null)
   const [filter, setFilter] = useState<"all" | "hot" | "warm" | "cold">("all")
+  const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredLeads =
-    filter === "all"
-      ? mockLeads
-      : mockLeads.filter((lead) => lead.temperature === filter)
+  // Fetch leads with filters
+  const { data: leadsData, isLoading } = trpc.leads.list.useQuery({
+    temperature: filter === "all" ? undefined : filter,
+  })
+
+  // Search leads if query is provided
+  const { data: searchResults } = trpc.search.leads.useQuery(
+    { query: searchQuery, limit: 50 },
+    { enabled: searchQuery.length > 0 }
+  )
+
+  // Use search results if query exists, otherwise use filtered leads
+  const leads = searchQuery.length > 0 
+    ? searchResults || []
+    : leadsData || []
+
+  // Format currency
+  const formatCurrency = (value: number | null | undefined): string => {
+    if (!value) return "₹0"
+    if (value >= 1000) {
+      return `₹${(value / 1000).toFixed(0)}k`
+    }
+    return `₹${value.toFixed(0)}`
+  }
 
   return (
     <div className="space-y-6">
@@ -82,6 +66,8 @@ export default function LeadsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search leads..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 bg-white/40 dark:bg-slate-800/40 border-white/30 dark:border-slate-700/30 text-foreground placeholder:text-muted-foreground"
           />
         </div>
@@ -142,63 +128,79 @@ export default function LeadsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLeads.map((lead) => (
-                <TableRow
-                  key={lead.id}
-                  className="cursor-pointer hover:bg-white/30 dark:hover:bg-slate-800/30 border-white/20 dark:border-slate-700/20"
-                  onClick={() => setSelectedLead(lead.id)}
-                >
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-foreground">{lead.company}</p>
-                      <p className="text-xs text-muted-foreground">{lead.contactCount} contacts</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="text-foreground">{lead.primaryContact}</p>
-                      <p className="text-xs text-muted-foreground">{lead.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      className={
-                        lead.temperature === "hot" 
-                          ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
-                          : lead.temperature === "warm"
-                          ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800"
-                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                      }
-                    >
-                      {lead.temperature.charAt(0).toUpperCase() + lead.temperature.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-semibold text-foreground">
-                    ₹{(lead.dealValue / 1000).toFixed(0)}k
-                  </TableCell>
-                  <TableCell className="text-foreground">{lead.source}</TableCell>
-                  <TableCell className="text-foreground">{lead.lastContact}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`h-4 w-4 ${
-                            i < lead.rating
-                              ? "fill-yellow-400 text-yellow-400 dark:fill-yellow-500 dark:text-yellow-500"
-                              : "text-gray-300 dark:text-gray-600"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="hover:bg-white/40 dark:hover:bg-slate-800/40">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : leads.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    No leads found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                leads.map((lead) => (
+                  <TableRow
+                    key={lead.id}
+                    className="cursor-pointer hover:bg-white/30 dark:hover:bg-slate-800/30 border-white/20 dark:border-slate-700/20"
+                    onClick={() => setSelectedLead(lead.id)}
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">{lead.company}</p>
+                        <p className="text-xs text-muted-foreground">1 contact</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-foreground">{lead.contactName}</p>
+                        <p className="text-xs text-muted-foreground">{lead.contactEmail || "No email"}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={
+                          lead.temperature === "hot" 
+                            ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
+                            : lead.temperature === "warm"
+                            ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800"
+                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                        }
+                      >
+                        {lead.temperature.charAt(0).toUpperCase() + lead.temperature.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-semibold text-foreground">
+                      {formatCurrency(lead.dealValue)}
+                    </TableCell>
+                    <TableCell className="text-foreground">-</TableCell>
+                    <TableCell className="text-foreground">
+                      {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-4 w-4 ${
+                              i < lead.rating
+                                ? "fill-yellow-400 text-yellow-400 dark:fill-yellow-500 dark:text-yellow-500"
+                                : "text-gray-300 dark:text-gray-600"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="hover:bg-white/40 dark:hover:bg-slate-800/40">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
