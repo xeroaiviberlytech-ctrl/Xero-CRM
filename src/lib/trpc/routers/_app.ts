@@ -1,23 +1,24 @@
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "../server"
+import { createTRPCRouter, publicProcedure } from "../server"
 import { z } from "zod"
+import { usersRouter } from "./users"
+import { leadsRouter } from "./leads"
 
 export const appRouter = createTRPCRouter({
+  // Health check endpoint
   hello: publicProcedure
-    .input(z.object({ text: z.string() }))
+    .input(
+      z.object({ text: z.string().optional() }).default({ text: undefined })
+    )
     .query(({ input }) => {
       return {
-        greeting: `Hello ${input.text}`,
+        greeting: `Hello ${input.text || "World"}`,
+        timestamp: new Date().toISOString(),
       }
     }),
 
-  // Example protected route
-  getCurrentUser: protectedProcedure.query(async ({ ctx }) => {
-    // User is guaranteed to exist in protectedProcedure
-    return {
-      id: ctx.user.id,
-      email: ctx.user.email,
-    }
-  }),
+  // Feature routers
+  users: usersRouter,
+  leads: leadsRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -174,7 +174,7 @@ export default function LeadsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="font-semibold text-foreground">
-                    ${(lead.dealValue / 1000).toFixed(0)}k
+                    ₹{(lead.dealValue / 1000).toFixed(0)}k
                   </TableCell>
                   <TableCell className="text-foreground">{lead.source}</TableCell>
                   <TableCell className="text-foreground">{lead.lastContact}</TableCell>

@@ -177,7 +177,7 @@ export default function MarketingPage() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-foreground">Budget Usage</p>
                     <p className="text-sm text-muted-foreground">
-                      ${campaign.budgetUsed.toLocaleString()} / ${campaign.budgetTotal.toLocaleString()}
+                      ₹{campaign.budgetUsed.toLocaleString()} / ₹{campaign.budgetTotal.toLocaleString()}
                     </p>
                   </div>
                   <div className="w-full bg-white/20 dark:bg-slate-800/20 rounded-full h-2">

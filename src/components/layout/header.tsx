@@ -99,7 +99,7 @@ export function DashboardHeader() {
 
   return (
     <header className="sticky top-0 z-40 glass-silver border-b border-white/30 dark:border-slate-700/30 backdrop-blur-xl">
-      <div className="flex items-center justify-between h-16 px-6 ml-20 transition-all duration-300">
+      <div className="flex items-center justify-between h-16 px-6 ml-16 transition-all duration-300">
         {/* Left Side - Action Buttons */}
         <div className="flex items-center gap-2">
           {getActionButtons()}

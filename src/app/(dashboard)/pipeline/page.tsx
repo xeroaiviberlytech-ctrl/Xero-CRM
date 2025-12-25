@@ -118,7 +118,7 @@ export default function PipelinePage() {
                   />
                   <h3 className="font-medium text-sm text-foreground">{stage.name}</h3>
                 </div>
-                <p className="text-2xl font-semibold text-foreground">${(total / 1000).toFixed(0)}k</p>
+                <p className="text-2xl font-semibold text-foreground">₹{(total / 1000).toFixed(0)}k</p>
                 <p className="text-xs text-muted-foreground mt-1">{count} deals</p>
               </CardContent>
             </Card>
@@ -171,7 +171,7 @@ export default function PipelinePage() {
                     <div className="flex items-center gap-2 text-xs">
                       <IndianRupee className="w-3 h-3 text-muted-foreground" />
                       <span className="font-semibold text-foreground">
-                        ${(deal.value / 1000).toFixed(0)}k
+                        ₹{(deal.value / 1000).toFixed(0)}k
                       </span>
                     </div>
 

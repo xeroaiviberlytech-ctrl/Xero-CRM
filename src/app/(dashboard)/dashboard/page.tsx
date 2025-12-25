@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   BarChart,
   Users,
-  DollarSign,
+  IndianRupee,
   Target,
   TrendingUp,
   TrendingDown,
@@ -23,11 +23,11 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Total Revenue",
-      value: "$248,392",
+      value: "₹24,83,920",
       change: "+12.5%",
-      icon: DollarSign,
+      icon: IndianRupee,
       trend: "up" as const,
-      bgIcon: DollarSign,
+      bgIcon: IndianRupee,
     },
     {
       title: "Active Leads",
@@ -56,11 +56,11 @@ export default function DashboardPage() {
   ]
 
   const recentActivities: ActivityItem[] = [
-    { id: 1, user: "Sarah Chen", userInitials: "SC", action: "closed deal Acme Corp $45,000", time: "2 min ago" },
+    { id: 1, user: "Sarah Chen", userInitials: "SC", action: "closed deal Acme Corp ₹45,000", time: "2 min ago" },
     { id: 2, user: "Mike Johnson", userInitials: "MJ", action: "added lead TechStart Inc", time: "15 min ago" },
     { id: 3, user: "Emma Davis", userInitials: "ED", action: "updated pipeline 3 deals", time: "1 hour ago" },
     { id: 4, user: "Alex Kumar", userInitials: "AK", action: "completed task Follow-up call", time: "2 hours ago" },
-    { id: 5, user: "Lisa Wang", userInitials: "LW", action: "sent proposal Global Solutions $32,000", time: "3 hours ago" },
+    { id: 5, user: "Lisa Wang", userInitials: "LW", action: "sent proposal Global Solutions ₹32,000", time: "3 hours ago" },
   ]
 
   return (
