@@ -48,23 +48,31 @@ export function Sidebar() {
           const isActive = pathname === item.href
           const Icon = item.icon
           return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center rounded-xl transition-all duration-200 group/item",
-                "justify-center p-3 group-hover:space-x-3 group-hover:justify-start",
-                isActive
-                  ? "bg-white/60 dark:bg-slate-800/60 text-primary shadow-md backdrop-blur-md"
-                  : "text-foreground hover:bg-white/40 dark:hover:bg-slate-800/40 hover:text-primary"
+            <div key={item.name} className="relative group/item">
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex items-center rounded-xl transition-all duration-200",
+                  "justify-center p-3 group-hover:space-x-3 group-hover:justify-start",
+                  isActive
+                    ? "bg-white/60 dark:bg-slate-800/60 text-primary shadow-md backdrop-blur-md"
+                    : "text-foreground hover:bg-white/40 dark:hover:bg-slate-800/40 hover:text-primary"
+                )}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium overflow-hidden max-w-0 group-hover:max-w-[200px] transition-all duration-300 whitespace-nowrap">
+                  {item.name}
+                </span>
+              </Link>
+              {isActive && (
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="glass-silver border-white/30 dark:border-slate-700/30 px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                    <p className="text-sm font-medium text-foreground">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">Double-click for quick actions</p>
+                  </div>
+                </div>
               )}
-              title={item.name}
-            >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium overflow-hidden max-w-0 group-hover:max-w-[200px] transition-all duration-300 whitespace-nowrap">
-                {item.name}
-              </span>
-            </Link>
+            </div>
           )
         })}
       </nav>

@@ -4,7 +4,8 @@ import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plus, Calendar, User } from "lucide-react"
+import { Plus, Calendar, User, Search } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
 interface Task {
@@ -175,6 +176,31 @@ export default function TasksPage() {
         ))}
       </div>
 
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            className="pl-10 bg-white/40 dark:bg-slate-800/40 border-white/30 dark:border-slate-700/30 text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+            All
+          </Button>
+          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+            To Do
+          </Button>
+          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+            In Progress
+          </Button>
+          <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
+            Completed
+          </Button>
+        </div>
+      </div>
+
       {/* Kanban Board */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {statusColumns.map((status) => (
@@ -187,7 +213,7 @@ export default function TasksPage() {
             <div className="glass-silver border-white/30 dark:border-slate-700/30 p-3 rounded-xl">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">{status}</h3>
-                <Badge className={statusColors[status]}>
+                <Badge variant="secondary" className="bg-white/40 dark:bg-slate-800/40">
                   {tasksByStatus[status]?.length || 0}
                 </Badge>
               </div>
@@ -202,13 +228,21 @@ export default function TasksPage() {
                   onDragStart={() => handleDragStart(task)}
                 >
                   <CardContent className="p-4 space-y-3">
-                    <div>
-                      <h4 className={`font-medium text-sm text-foreground mb-1 ${
-                        task.completed ? 'line-through opacity-60' : ''
-                      }`}>
-                        {task.title}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">{task.description}</p>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => {}}
+                        className="mt-0.5 w-4 h-4 rounded border-white/30 dark:border-slate-700/30"
+                      />
+                      <div className="flex-1">
+                        <h4 className={`font-medium text-sm text-foreground mb-1 ${
+                          task.completed ? 'line-through opacity-60' : ''
+                        }`}>
+                          {task.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">{task.description}</p>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
@@ -220,14 +254,14 @@ export default function TasksPage() {
                       </Badge>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
-                      <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-1 text-muted-foreground">
                         <Calendar className="w-3 h-3" />
                         <span>{task.dueDate}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        <span>{task.assignee}</span>
+                        <User className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">{task.assignee}</span>
                       </div>
                     </div>
                   </CardContent>

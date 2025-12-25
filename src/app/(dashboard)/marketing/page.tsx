@@ -2,32 +2,84 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, Mail, Users, Target } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { TrendingUp, Mail, Users, Target, Calendar } from "lucide-react"
 
 const campaignStats = [
   {
-    title: "Total Sent",
-    value: "12,458",
-    change: "+8.2%",
-    icon: Mail,
-  },
-  {
-    title: "Open Rate",
-    value: "68.4%",
-    change: "+5.1%",
+    title: "Total Campaigns",
+    value: "4",
     icon: Target,
   },
   {
-    title: "Click Rate",
-    value: "12.3%",
-    change: "+2.4%",
+    title: "Total Sent",
+    value: "28.7k",
+    icon: Mail,
+  },
+  {
+    title: "Avg Open Rate",
+    value: "68.8%",
     icon: Users,
   },
   {
-    title: "Conversions",
-    value: "342",
-    change: "+15.7%",
+    title: "Total Conversions",
+    value: "1784",
     icon: TrendingUp,
+  },
+]
+
+const campaigns = [
+  {
+    id: 1,
+    name: "Spring Product Launch",
+    status: "Active",
+    type: "Email",
+    dateRange: "2024-01-01 - 2024-03-31",
+    sent: 12500,
+    openRate: 50.0,
+    clickRate: 30.0,
+    conversionRate: 20.0,
+    budgetUsed: 18750,
+    budgetTotal: 25000,
+  },
+  {
+    id: 2,
+    name: "LinkedIn Lead Generation",
+    status: "Active",
+    type: "Social",
+    dateRange: "2024-01-15 - 2024-02-28",
+    sent: 8000,
+    openRate: 70.0,
+    clickRate: 42.9,
+    conversionRate: 23.3,
+    budgetUsed: 12000,
+    budgetTotal: 15000,
+  },
+  {
+    id: 3,
+    name: "Customer Retention Program",
+    status: "Completed",
+    type: "Email",
+    dateRange: "2023-12-01 - 2024-01-31",
+    sent: 5000,
+    openRate: 75.0,
+    clickRate: 33.3,
+    conversionRate: 50.0,
+    budgetUsed: 9500,
+    budgetTotal: 10000,
+  },
+  {
+    id: 4,
+    name: "Trade Show Follow-up",
+    status: "Active",
+    type: "Multi-channel",
+    dateRange: "2024-01-20 - 2024-02-20",
+    sent: 3200,
+    openRate: 80.0,
+    clickRate: 37.5,
+    conversionRate: 23.3,
+    budgetUsed: 15600,
+    budgetTotal: 20000,
   },
 ]
 
@@ -37,8 +89,8 @@ export default function MarketingPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Marketing</h1>
-          <p className="text-muted-foreground mt-1">Manage your campaigns and track performance</p>
+          <h1 className="text-3xl font-bold text-foreground">Campaign Management</h1>
+          <p className="text-muted-foreground mt-1">Track and manage your marketing campaigns</p>
         </div>
         <Button className="glass-strong border-white/30 dark:border-slate-700/30">
           Create Campaign
@@ -49,21 +101,9 @@ export default function MarketingPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {campaignStats.map((stat) => (
           <Card key={stat.title} className="glass-silver border-white/30 dark:border-slate-700/30">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-              <div className="flex items-center mt-2">
-                <TrendingUp className="h-4 w-4 text-green-500 dark:text-green-400 mr-1" />
-                <p className="text-xs font-medium text-green-600 dark:text-green-400">
-                  {stat.change}
-                </p>
-                <span className="text-xs text-muted-foreground ml-1">from last month</span>
-              </div>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+              <h3 className="text-3xl font-semibold text-foreground">{stat.value}</h3>
             </CardContent>
           </Card>
         ))}
@@ -73,11 +113,11 @@ export default function MarketingPage() {
       <Card className="glass-silver border-white/30 dark:border-slate-700/30">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-foreground">
-            Campaign Performance (Last 4 Weeks)
+            Campaign Performance Trends
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
+          <div className="h-64 flex items-center justify-center text-muted-foreground bg-white/20 dark:bg-slate-800/20 rounded-lg backdrop-blur-sm">
             <div className="text-center">
               <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p className="text-sm">Campaign performance chart will be displayed here</p>
@@ -87,42 +127,71 @@ export default function MarketingPage() {
       </Card>
 
       {/* Active Campaigns */}
-      <Card className="glass-silver border-white/30 dark:border-slate-700/30">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-foreground">
-            Active Campaigns
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              { name: "Q1 Product Launch", status: "Active", sent: "5,234", opens: "3,589" },
-              { name: "Spring Sale", status: "Active", sent: "4,128", opens: "2,856" },
-              { name: "Newsletter #42", status: "Active", sent: "3,096", opens: "2,123" },
-            ].map((campaign, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-4 bg-white/20 dark:bg-slate-800/20 rounded-xl hover:bg-white/30 dark:hover:bg-slate-800/30 transition-colors"
-              >
-                <div>
-                  <h4 className="font-semibold text-foreground">{campaign.name}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {campaign.sent} sent • {campaign.opens} opens
-                  </p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">
-                    {campaign.status}
-                  </span>
-                  <Button variant="ghost" size="sm">
+      <div>
+        <h2 className="text-xl font-semibold text-foreground mb-4">Active Campaigns</h2>
+        <div className="space-y-4">
+          {campaigns.map((campaign) => (
+            <Card key={campaign.id} className="glass-silver border-white/30 dark:border-slate-700/30">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-semibold text-foreground">{campaign.name}</h3>
+                      <Badge className={campaign.status === "Active" ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300" : "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300"}>
+                        {campaign.status}
+                      </Badge>
+                      <Badge variant="outline" className="bg-white/40 dark:bg-slate-800/40">
+                        {campaign.type}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>{campaign.dateRange}</span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="glass-subtle border-white/30 dark:border-slate-700/30">
                     View Details
                   </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+
+                <div className="grid grid-cols-4 gap-4 mb-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Sent</p>
+                    <p className="text-sm font-semibold text-foreground">{campaign.sent.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Open Rate</p>
+                    <p className="text-sm font-semibold text-foreground">{campaign.openRate.toFixed(1)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Click Rate</p>
+                    <p className="text-sm font-semibold text-foreground">{campaign.clickRate.toFixed(1)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Conversion Rate</p>
+                    <p className="text-sm font-semibold text-foreground">{campaign.conversionRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-foreground">Budget Usage</p>
+                    <p className="text-sm text-muted-foreground">
+                      ${campaign.budgetUsed.toLocaleString()} / ${campaign.budgetTotal.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="w-full bg-white/20 dark:bg-slate-800/20 rounded-full h-2">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all"
+                      style={{ width: `${(campaign.budgetUsed / campaign.budgetTotal) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
