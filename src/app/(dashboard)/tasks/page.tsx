@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -106,29 +106,40 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [draggedTask, setDraggedTask] = useState<Task | null>(null)
 
-  const handleDragStart = (task: Task) => {
+  // Memoize tasks by status to avoid recalculating on every render
+  const tasksByStatus = useMemo(() => {
+    const grouped: Record<string, Task[]> = {}
+    statusColumns.forEach(status => {
+      grouped[status] = tasks.filter(task => task.status === status)
+    })
+    return grouped
+  }, [tasks])
+
+  const handleDragStart = useCallback((task: Task) => {
     setDraggedTask(task)
-  }
+  }, [])
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-  }
+  }, [])
 
-  const handleDrop = (status: typeof statusColumns[number]) => {
+  const handleDrop = useCallback((status: typeof statusColumns[number]) => {
     if (draggedTask) {
-      setTasks(tasks.map(task => 
-        task.id === draggedTask.id 
-          ? { ...task, status, completed: status === "Completed" }
-          : task
-      ))
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === draggedTask.id 
+            ? { ...task, status, completed: status === "Completed" }
+            : task
+        )
+      )
       toast.success(`Task moved to ${status}`)
       setDraggedTask(null)
     }
-  }
+  }, [draggedTask])
 
-  const getTasksByStatus = (status: typeof statusColumns[number]) => {
-    return tasks.filter(task => task.status === status)
-  }
+  const getTasksByStatus = useCallback((status: typeof statusColumns[number]) => {
+    return tasksByStatus[status] || []
+  }, [tasksByStatus])
 
   return (
     <div className="space-y-6">
@@ -157,7 +168,7 @@ export default function TasksPage() {
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground mb-1">{status}</p>
               <h3 className="text-3xl font-semibold text-foreground">
-                {getTasksByStatus(status).length}
+                {tasksByStatus[status]?.length || 0}
               </h3>
             </CardContent>
           </Card>
@@ -177,13 +188,13 @@ export default function TasksPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">{status}</h3>
                 <Badge className={statusColors[status]}>
-                  {getTasksByStatus(status).length}
+                  {tasksByStatus[status]?.length || 0}
                 </Badge>
               </div>
             </div>
 
             <div className="space-y-3">
-              {getTasksByStatus(status).map((task) => (
+              {(tasksByStatus[status] || []).map((task) => (
                 <Card
                   key={task.id}
                   className="glass-subtle border-white/30 dark:border-slate-700/30 cursor-move hover:shadow-md transition-shadow"

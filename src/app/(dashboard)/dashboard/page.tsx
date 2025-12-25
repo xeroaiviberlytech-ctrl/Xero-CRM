@@ -12,7 +12,7 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Total Revenue",
-      value: "$248,392",
+      value: "₹24,83,920",
       change: "+12.5%",
       icon: DollarSign,
       trend: "up",
@@ -46,10 +46,10 @@ export default function DashboardPage() {
 
   const recentActivities = [
     { id: 1, text: "New lead added: Acme Corp", time: "2 hours ago" },
-    { id: 2, text: "Deal closed: Tech Solutions Inc ($45k)", time: "4 hours ago" },
+    { id: 2, text: "Deal closed: Tech Solutions Inc (₹4.5L)", time: "4 hours ago" },
     { id: 3, text: "Task completed: Follow up with ABC Company", time: "6 hours ago" },
     { id: 4, text: "Campaign launched: Q1 Product Launch", time: "1 day ago" },
-    { id: 5, text: "New deal created: XYZ Corporation ($120k)", time: "1 day ago" },
+    { id: 5, text: "New deal created: XYZ Corporation (₹12L)", time: "1 day ago" },
   ]
 
   return (

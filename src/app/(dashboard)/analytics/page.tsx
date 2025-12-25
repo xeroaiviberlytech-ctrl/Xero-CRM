@@ -46,7 +46,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-foreground mb-2">$4.9k</div>
+            <div className="text-4xl font-bold text-foreground mb-2">₹4.9L</div>
             <p className="text-sm text-muted-foreground">Per deal</p>
           </CardContent>
         </Card>

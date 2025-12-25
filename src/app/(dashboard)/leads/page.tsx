@@ -21,7 +21,7 @@ const mockLeads = [
     company: "Acme Corporation",
     contact: "John Doe",
     temperature: "hot" as const,
-    dealValue: "$125,000",
+    dealValue: "₹12,50,000",
     rating: 5,
   },
   {
@@ -29,7 +29,7 @@ const mockLeads = [
     company: "Tech Solutions Inc",
     contact: "Jane Smith",
     temperature: "warm" as const,
-    dealValue: "$85,000",
+    dealValue: "₹8,50,000",
     rating: 4,
   },
   {
@@ -37,7 +37,7 @@ const mockLeads = [
     company: "Global Enterprises",
     contact: "Bob Johnson",
     temperature: "cold" as const,
-    dealValue: "$45,000",
+    dealValue: "₹4,50,000",
     rating: 3,
   },
   {
@@ -45,7 +45,7 @@ const mockLeads = [
     company: "Digital Dynamics",
     contact: "Alice Williams",
     temperature: "hot" as const,
-    dealValue: "$200,000",
+    dealValue: "₹20,00,000",
     rating: 5,
   },
   {
@@ -53,7 +53,7 @@ const mockLeads = [
     company: "Innovation Labs",
     contact: "Charlie Brown",
     temperature: "warm" as const,
-    dealValue: "$65,000",
+    dealValue: "₹6,50,000",
     rating: 4,
   },
 ]

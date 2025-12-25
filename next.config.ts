@@ -1,7 +1,25 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Performance optimizations
+  reactStrictMode: true,
+  swcMinify: true,
+  
+  // Optimize images
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+  
+  // Compress responses
+  compress: true,
+  
+  // Optimize production builds
+  productionBrowserSourceMaps: false,
+  
+  // Experimental features for better performance
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
 };
 
 export default nextConfig;

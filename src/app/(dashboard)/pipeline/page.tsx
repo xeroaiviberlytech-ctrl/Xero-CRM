@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DollarSign, Calendar, User } from "lucide-react"
+import { IndianRupee, Calendar, User } from "lucide-react"
 import { toast } from "sonner"
 
 interface Deal {
@@ -41,34 +41,54 @@ export default function PipelinePage() {
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null)
 
-  const handleDragStart = (deal: Deal) => {
+  // Memoize deals by stage to avoid recalculating on every render
+  const dealsByStage = useMemo(() => {
+    const grouped: Record<string, Deal[]> = {}
+    stages.forEach(stage => {
+      grouped[stage.id] = deals.filter(deal => deal.stage === stage.id)
+    })
+    return grouped
+  }, [deals])
+
+  // Memoize stage totals
+  const stageTotals = useMemo(() => {
+    const totals: Record<string, number> = {}
+    stages.forEach(stage => {
+      totals[stage.id] = dealsByStage[stage.id].reduce((sum, deal) => sum + deal.value, 0)
+    })
+    return totals
+  }, [dealsByStage])
+
+  const handleDragStart = useCallback((deal: Deal) => {
     setDraggedDeal(deal)
-  }
+  }, [])
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-  }
+  }, [])
 
-  const handleDrop = (stageId: string) => {
+  const handleDrop = useCallback((stageId: string) => {
     if (draggedDeal) {
       const stage = stages.find(s => s.id === stageId)
-      setDeals(deals.map(deal => 
-        deal.id === draggedDeal.id 
-          ? { ...deal, stage: stageId }
-          : deal
-      ))
+      setDeals(prevDeals => 
+        prevDeals.map(deal => 
+          deal.id === draggedDeal.id 
+            ? { ...deal, stage: stageId }
+            : deal
+        )
+      )
       toast.success(`Deal moved to ${stage?.name || stageId}`)
       setDraggedDeal(null)
     }
-  }
+  }, [draggedDeal])
 
-  const getDealsByStage = (stageId: string) => {
-    return deals.filter(deal => deal.stage === stageId)
-  }
+  const getDealsByStage = useCallback((stageId: string) => {
+    return dealsByStage[stageId] || []
+  }, [dealsByStage])
 
-  const getStageTotal = (stageId: string) => {
-    return getDealsByStage(stageId).reduce((sum, deal) => sum + deal.value, 0)
-  }
+  const getStageTotal = useCallback((stageId: string) => {
+    return stageTotals[stageId] || 0
+  }, [stageTotals])
 
   return (
     <div className="space-y-6">
@@ -87,7 +107,7 @@ export default function PipelinePage() {
       <div className="grid grid-cols-5 gap-4">
         {stages.map((stage) => {
           const total = getStageTotal(stage.id)
-          const count = getDealsByStage(stage.id).length
+          const count = dealsByStage[stage.id]?.length || 0
           return (
             <Card key={stage.id} className="glass-silver border-white/30 dark:border-slate-700/30">
               <CardContent className="p-4">
@@ -98,7 +118,7 @@ export default function PipelinePage() {
                   />
                   <h3 className="font-medium text-sm text-foreground">{stage.name}</h3>
                 </div>
-                <p className="text-2xl font-semibold text-foreground">${(total / 1000).toFixed(0)}k</p>
+                <p className="text-2xl font-semibold text-foreground">₹{(total / 100000).toFixed(1)}L</p>
                 <p className="text-xs text-muted-foreground mt-1">{count} deals</p>
               </CardContent>
             </Card>
@@ -133,7 +153,7 @@ export default function PipelinePage() {
 
             {/* Deals */}
             <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-              {getDealsByStage(stage.id).map((deal) => (
+              {(dealsByStage[stage.id] || []).map((deal) => (
                 <Card
                   key={deal.id}
                   className="glass-subtle border-white/30 dark:border-slate-700/30 cursor-move hover:shadow-md transition-shadow"
@@ -149,9 +169,9 @@ export default function PipelinePage() {
                     </div>
 
                     <div className="flex items-center gap-2 text-xs">
-                      <DollarSign className="w-3 h-3 text-muted-foreground" />
+                      <IndianRupee className="w-3 h-3 text-muted-foreground" />
                       <span className="font-semibold text-foreground">
-                        ${(deal.value / 1000).toFixed(0)}k
+                        ₹{(deal.value / 100000).toFixed(1)}L
                       </span>
                     </div>
 
