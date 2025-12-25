@@ -4,7 +4,7 @@ import { memo } from "react"
 import { ResponsiveContainer } from "recharts"
 
 interface MemoizedChartProps {
-  children: React.ReactNode
+  children: React.ReactElement
   height?: number
   className?: string
 }
@@ -18,4 +18,5 @@ export const MemoizedChart = memo(({ children, height = 250, className }: Memoiz
 })
 
 MemoizedChart.displayName = "MemoizedChart"
+
 
