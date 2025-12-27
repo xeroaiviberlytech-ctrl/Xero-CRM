@@ -3,24 +3,28 @@ import { DashboardHeader } from "@/components/layout/header"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
+// Force dynamic rendering to ensure auth cookies are always checked
+export const dynamic = "force-dynamic"
+
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   // Check authentication
+  let user = null
+
   try {
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      redirect("/login")
-    }
+    const { data } = await supabase.auth.getUser()
+    user = data.user
   } catch (error) {
-    // If Supabase is not configured, allow access (for development)
-    console.warn("Auth check failed, allowing access:", error)
+    // If Supabase is not configured or fails, valid user remains null
+    console.warn("Auth check failed:", error)
+  }
+
+  if (!user) {
+    redirect("/login")
   }
 
   return (
