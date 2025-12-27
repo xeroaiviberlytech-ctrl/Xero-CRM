@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${inter.variable} antialiased`} suppressHydrationWarning>
         <TRPCProvider>
           <ThemeProvider defaultTheme="system" storageKey="xero-crm-theme">
             <AuthProvider>

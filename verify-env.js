@@ -41,6 +41,18 @@ lines.forEach((line, index) => {
       console.log(`  ⚠️  Value is EMPTY`);
     }
   }
+  if (line.startsWith('DATABASE_URL=')) {
+    console.log(`✓ Found DATABASE_URL on line ${index + 1}`);
+    const val = line.split('=')[1]?.trim() || '';
+    if (val) console.log(`  Value starts with: ${val.substring(0, 20)}...`);
+    else console.log(`  ⚠️  Value is EMPTY`);
+  }
+  if (line.startsWith('DIRECT_URL=')) {
+    console.log(`✓ Found DIRECT_URL on line ${index + 1}`);
+    const val = line.split('=')[1]?.trim() || '';
+    if (val) console.log(`  Value starts with: ${val.substring(0, 20)}...`);
+    else console.log(`  ⚠️  Value is EMPTY`);
+  }
 });
 
 console.log('\n📊 Summary:');
