@@ -147,7 +147,7 @@ export default function LeadsPage() {
               <TableRow className="border-white/20 dark:border-slate-700/20">
                 <TableHead className="text-foreground">Company</TableHead>
                 <TableHead className="text-foreground">Primary Contact</TableHead>
-                <TableHead className="text-foreground">Temperature</TableHead>
+                <TableHead className="text-foreground">Leads Status</TableHead>
                 <TableHead className="text-foreground">Value</TableHead>
                 <TableHead className="text-foreground">Source</TableHead>
                 <TableHead className="text-foreground">Last Contact</TableHead>
