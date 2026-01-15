@@ -34,7 +34,6 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
     contactName: "",
     contactEmail: "",
     contactPhone: "",
-    dealValue: "",
     rating: "0",
     status: "warm" as "hot" | "warm" | "cold",
     notes: "",
@@ -52,7 +51,6 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
         contactName: "",
         contactEmail: "",
         contactPhone: "",
-        dealValue: "",
         rating: "0",
         status: "warm",
         notes: "",
@@ -70,7 +68,6 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
       contactName: formData.contactName,
       contactEmail: formData.contactEmail || null,
       contactPhone: formData.contactPhone || null,
-      dealValue: formData.dealValue ? parseFloat(formData.dealValue) : null,
       rating: parseInt(formData.rating),
       status: formData.status,
       notes: formData.notes || null,
@@ -159,20 +156,6 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
                   <SelectItem value="cold">Cold</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dealValue">Deal Value (₹)</Label>
-              <Input
-                id="dealValue"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.dealValue}
-                onChange={(e) =>
-                  setFormData({ ...formData, dealValue: e.target.value })
-                }
-                className="bg-white/40 dark:bg-slate-800/40"
-              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rating">Rating</Label>

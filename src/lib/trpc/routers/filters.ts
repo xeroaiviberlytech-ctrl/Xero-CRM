@@ -118,8 +118,6 @@ export const filtersRouter = createTRPCRouter({
         temperature: z.array(z.enum(["hot", "warm", "cold"])).optional(),
         status: z.array(z.enum(["hot", "warm", "cold"])).optional(),
         rating: z.array(z.number().int().min(0).max(5)).optional(),
-        minValue: z.number().optional(),
-        maxValue: z.number().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -137,16 +135,6 @@ export const filtersRouter = createTRPCRouter({
 
       if (input.rating && input.rating.length > 0) {
         where.rating = { in: input.rating }
-      }
-
-      if (input.minValue !== undefined || input.maxValue !== undefined) {
-        where.dealValue = {}
-        if (input.minValue !== undefined) {
-          where.dealValue.gte = input.minValue
-        }
-        if (input.maxValue !== undefined) {
-          where.dealValue.lte = input.maxValue
-        }
       }
 
       const leads = await ctx.prisma.lead.findMany({

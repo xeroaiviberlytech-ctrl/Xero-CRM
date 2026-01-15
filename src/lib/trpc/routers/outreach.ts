@@ -39,6 +39,13 @@ export const outreachRouter = createTRPCRouter({
               email: true,
             },
           },
+          contact: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       })
 

@@ -1,26 +1,56 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useMemo, useCallback, useEffect } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { IndianRupee, Calendar, User, Loader2 } from "lucide-react"
+import { 
+  IndianRupee, 
+  Calendar, 
+  User, 
+  Loader2, 
+  TrendingUp, 
+  Clock,
+  Target,
+  ArrowRight,
+  Plus
+} from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc/react"
 import { format } from "date-fns"
 import { AddDealDialog } from "@/components/dialogs/add-deal-dialog"
 
 const stages = [
-  { id: "prospecting", name: "Prospecting", color: "hsl(230, 100%, 58%)" },
-  { id: "qualified", name: "Qualified", color: "hsl(223, 30%, 46%)" },
-  { id: "proposal", name: "Proposal", color: "hsl(142, 71%, 45%)" },
-  { id: "negotiation", name: "Negotiation", color: "hsl(38, 92%, 50%)" },
-  { id: "closed-won", name: "Closed Won", color: "hsl(142, 71%, 45%)" },
+  { id: "prospecting", name: "Prospecting", color: "rgb(37, 99, 235)", colorDark: "hsl(230, 100%, 58%)", bgColor: "rgba(59, 130, 246, 0.1)", borderColor: "rgba(59, 130, 246, 0.3)" },
+  { id: "qualified", name: "Qualified", color: "rgb(79, 70, 229)", colorDark: "hsl(223, 30%, 46%)", bgColor: "rgba(99, 102, 241, 0.1)", borderColor: "rgba(99, 102, 241, 0.3)" },
+  { id: "proposal", name: "Proposal", color: "rgb(22, 163, 74)", colorDark: "hsl(142, 71%, 45%)", bgColor: "rgba(34, 197, 94, 0.1)", borderColor: "rgba(34, 197, 94, 0.3)" },
+  { id: "negotiation", name: "Negotiation", color: "rgb(217, 119, 6)", colorDark: "hsl(38, 92%, 50%)", bgColor: "rgba(251, 191, 36, 0.1)", borderColor: "rgba(251, 191, 36, 0.3)" },
+  { id: "closed-won", name: "Closed Won", color: "rgb(22, 163, 74)", colorDark: "hsl(142, 71%, 45%)", bgColor: "rgba(34, 197, 94, 0.15)", borderColor: "rgba(34, 197, 94, 0.4)" },
 ]
 
 export default function PipelinePage() {
   const [draggedDealId, setDraggedDealId] = useState<string | null>(null)
   const [dealDialogOpen, setDealDialogOpen] = useState(false)
+  const [draggedOverStage, setDraggedOverStage] = useState<string | null>(null)
+  const [isDark, setIsDark] = useState(false)
+
+  // Detect theme
+  useEffect(() => {
+    const checkTheme = () => {
+      const isDarkMode = document.documentElement.classList.contains('dark') ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      setIsDark(isDarkMode)
+    }
+    
+    checkTheme()
+    const observer = new MutationObserver(checkTheme)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+    
+    return () => observer.disconnect()
+  }, [])
   
   // Fetch deals grouped by stage - optimized with caching
   const { data: dealsByStageData, isLoading } = trpc.deals.getByStage.useQuery(
@@ -66,8 +96,13 @@ export default function PipelinePage() {
     setDraggedDealId(dealId)
   }, [])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent, stageId: string) => {
     e.preventDefault()
+    setDraggedOverStage(stageId)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDraggedOverStage(null)
   }, [])
 
   const handleDrop = useCallback((stageId: string) => {
@@ -77,6 +112,7 @@ export default function PipelinePage() {
         stage: stageId as "prospecting" | "qualified" | "proposal" | "negotiation" | "closed-won" | "closed-lost",
       })
       setDraggedDealId(null)
+      setDraggedOverStage(null)
     }
   }, [draggedDealId, updateStageMutation])
 
@@ -96,31 +132,104 @@ export default function PipelinePage() {
 
   // Format currency
   const formatCurrency = (value: number): string => {
+    if (value >= 1000000) {
+      return `₹${(value / 1000000).toFixed(1)}M`
+    }
     if (value >= 1000) {
       return `₹${(value / 1000).toFixed(0)}k`
     }
     return `₹${value.toFixed(0)}`
   }
 
+  // Calculate total pipeline value
+  const totalPipelineValue = useMemo(() => {
+    return Object.values(stageTotals).reduce((sum, total) => sum + total, 0)
+  }, [stageTotals])
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Sales Pipeline</h1>
-          <p className="text-muted-foreground mt-1">Drag and drop deals to update stages</p>
+          <h1 className="text-3xl font-bold text-foreground mb-1">Sales Pipeline</h1>
+          <p className="text-muted-foreground text-sm">Manage and track your deals through each stage</p>
         </div>
         <Button 
-          className="glass-strong border-white/30 dark:border-slate-700/30"
+          className="glass-strong border-white/30 dark:border-slate-700/30 hover:scale-105 transition-transform"
           onClick={() => setDealDialogOpen(true)}
         >
+          <Plus className="h-4 w-4 mr-2" />
           Add New Deal
         </Button>
       </div>
 
-      {/* Pipeline Stats */}
+      {/* Pipeline Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="glass-strong border-white/30 dark:border-slate-700/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Total Pipeline</p>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(totalPipelineValue)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-primary/10 dark:bg-primary/20">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-strong border-white/30 dark:border-slate-700/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Active Deals</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {Object.values(stageStats || {}).reduce((sum, stat) => sum + (stat?.count || 0), 0)}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-500/10 dark:bg-blue-500/20">
+                <Target className="h-5 w-5 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-strong border-white/30 dark:border-slate-700/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Won Deals</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {stageStats?.["closed-won"]?.count || 0}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-green-500/10 dark:bg-green-500/20">
+                <IndianRupee className="h-5 w-5 text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-strong border-white/30 dark:border-slate-700/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Win Rate</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {Object.values(stageStats || {}).reduce((sum, stat) => sum + (stat?.count || 0), 0) > 0
+                    ? Math.round(((stageStats?.["closed-won"]?.count || 0) / Object.values(stageStats || {}).reduce((sum, stat) => sum + (stat?.count || 0), 0)) * 100)
+                    : 0}%
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-500/10 dark:bg-purple-500/20">
+                <TrendingUp className="h-5 w-5 text-purple-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Stage Stats Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {stages.map((stage) => (
             <Card key={stage.id} className="glass-silver border-white/30 dark:border-slate-700/30">
               <CardContent className="p-4">
@@ -130,22 +239,32 @@ export default function PipelinePage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {stages.map((stage) => {
             const total = getStageTotal(stage.id)
             const count = getStageCount(stage.id)
             return (
-              <Card key={stage.id} className="glass-silver border-white/30 dark:border-slate-700/30">
+              <Card 
+                key={stage.id} 
+                className="glass-strong border-white/30 dark:border-slate-700/30 hover:shadow-lg transition-all duration-300 hover:scale-105"
+              >
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <div 
-                      className="w-3 h-3 rounded-full" 
+                      className="w-3 h-3 rounded-full shadow-sm" 
                       style={{ backgroundColor: stage.color }}
                     />
-                    <h3 className="font-medium text-sm text-foreground">{stage.name}</h3>
+                    <h3 className="font-semibold text-sm text-foreground">{stage.name}</h3>
                   </div>
-                  <p className="text-2xl font-semibold text-foreground">{formatCurrency(total)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{count} deals</p>
+                  <p className="text-2xl font-bold text-foreground mb-1">{formatCurrency(total)}</p>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="secondary" 
+                      className="bg-white/40 dark:bg-slate-800/40 text-xs"
+                    >
+                      {count} {count === 1 ? 'deal' : 'deals'}
+                    </Badge>
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -154,83 +273,141 @@ export default function PipelinePage() {
       )}
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-5 gap-4 h-[calc(100vh-300px)]">
-        {stages.map((stage) => (
-          <div
-            key={stage.id}
-            className="flex flex-col"
-            onDragOver={handleDragOver}
-            onDrop={() => handleDrop(stage.id)}
-          >
-            {/* Stage Header */}
-            <div className="glass-silver border-white/30 dark:border-slate-700/30 p-3 rounded-xl mb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: stage.color }}
-                  />
-                  <span className="font-medium text-sm text-foreground">{stage.name}</span>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 min-h-[600px]">
+        {stages.map((stage) => {
+          const deals = getDealsByStage(stage.id)
+          const isDraggedOver = draggedOverStage === stage.id
+          
+          return (
+            <div
+              key={stage.id}
+              className="flex flex-col"
+              onDragOver={(e) => handleDragOver(e, stage.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={() => handleDrop(stage.id)}
+            >
+              {/* Stage Header */}
+              <div 
+                className="glass-strong border-white/30 dark:border-slate-700/30 p-4 rounded-xl mb-3 transition-all duration-300"
+                style={{
+                  border: isDraggedOver ? `2px solid ${stage.color}` : undefined,
+                  backgroundColor: isDraggedOver ? stage.bgColor : undefined,
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full shadow-sm" 
+                      style={{ backgroundColor: stage.color }}
+                    />
+                    <span className="font-semibold text-sm text-foreground">{stage.name}</span>
+                  </div>
+                  <Badge 
+                    variant="secondary" 
+                    className="bg-white/50 dark:bg-slate-800/50 font-semibold"
+                  >
+                    {deals.length}
+                  </Badge>
                 </div>
-                <Badge variant="secondary" className="bg-white/40 dark:bg-slate-800/40">
-                  {getDealsByStage(stage.id).length}
-                </Badge>
+                {isDraggedOver && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                    <ArrowRight className="h-3 w-3" />
+                    <span>Drop here</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Deals */}
+              <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : deals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-muted/20 flex items-center justify-center mb-3">
+                      <Target className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">No deals in this stage</p>
+                  </div>
+                ) : (
+                  deals.map((deal: any) => {
+                    const isDragging = draggedDealId === deal.id
+                    return (
+                      <Card
+                        key={deal.id}
+                        className={`glass-subtle border-white/30 dark:border-slate-700/30 cursor-move hover:shadow-lg transition-all duration-300 hover:scale-[1.02] ${
+                          isDragging ? 'opacity-50 scale-95' : ''
+                        }`}
+                        draggable
+                        onDragStart={() => handleDragStart(deal.id)}
+                        style={{
+                          borderColor: isDragging ? stage.borderColor : undefined,
+                        }}
+                      >
+                        <CardContent className="p-4 space-y-3">
+                          {/* Company Name */}
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground mb-1 line-clamp-1">
+                              {deal.company}
+                            </h4>
+                            {deal.lead?.company && (
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                From: {deal.lead.company}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Deal Value */}
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 dark:bg-primary/10">
+                            <span className="font-bold text-base text-foreground">
+                              {formatCurrency(deal.value)}
+                            </span>
+                          </div>
+
+                          {/* Date and Probability */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span className="line-clamp-1">
+                                {deal.expectedClose 
+                                  ? format(new Date(deal.expectedClose), "MMM dd, yyyy")
+                                  : "No date"}
+                              </span>
+                            </div>
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs font-semibold px-2 py-0.5"
+                              style={{
+                                borderColor: stage.borderColor,
+                                backgroundColor: stage.bgColor,
+                                color: isDark ? stage.colorDark : stage.color,
+                              }}
+                            >
+                              {deal.probability}%
+                            </Badge>
+                          </div>
+
+                          {/* Owner */}
+                          <div className="flex items-center gap-2 pt-2 border-t border-white/20 dark:border-slate-700/20">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
+                              {deal.owner.name 
+                                ? deal.owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                                : deal.owner.email?.substring(0, 2).toUpperCase() || "U"}
+                            </div>
+                            <span className="text-xs text-muted-foreground line-clamp-1 flex-1">
+                              {deal.owner.name || deal.owner.email || "Unassigned"}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })
+                )}
               </div>
             </div>
-
-            {/* Deals */}
-            <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : (getDealsByStage(stage.id) || []).map((deal: any) => (
-                <Card
-                  key={deal.id}
-                  className="glass-subtle border-white/30 dark:border-slate-700/30 cursor-move hover:shadow-md transition-shadow"
-                  draggable
-                  onDragStart={() => handleDragStart(deal.id)}
-                >
-                  <CardContent className="p-4 space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm text-foreground mb-1">
-                        {deal.company}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">{deal.lead?.company || "No lead"}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs">
-                      <IndianRupee className="w-3 h-3 text-muted-foreground" />
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(deal.value)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        <span>{deal.expectedClose ? format(new Date(deal.expectedClose), "MMM dd, yyyy") : "No date"}</span>
-                      </div>
-                      <Badge 
-                        variant="outline" 
-                        className="bg-white/40 dark:bg-slate-800/40 border-white/40 dark:border-slate-700/40 text-xs"
-                      >
-                        {deal.probability}%
-                      </Badge>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary">
-                        {deal.owner.name ? deal.owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2) : "U"}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{deal.owner.name || deal.owner.email}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Add Deal Dialog */}

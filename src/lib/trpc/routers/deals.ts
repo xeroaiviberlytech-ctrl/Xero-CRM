@@ -422,9 +422,24 @@ export const dealsRouter = createTRPCRouter({
         })
       }
 
+      // Auto-update probability based on stage
+      const stageProbabilityMap: Record<string, number> = {
+        prospecting: 10,
+        qualified: 25,
+        proposal: 50,
+        negotiation: 75,
+        "closed-won": 100,
+        "closed-lost": 0,
+      }
+
+      const newProbability = stageProbabilityMap[input.stage] ?? deal.probability
+
       const updatedDeal = await ctx.prisma.deal.update({
         where: { id: input.id },
-        data: { stage: input.stage },
+        data: { 
+          stage: input.stage,
+          probability: newProbability,
+        },
         include: {
           owner: {
             select: {
@@ -448,7 +463,7 @@ export const dealsRouter = createTRPCRouter({
         data: {
           type: "deal_stage_changed",
           title: `Deal moved to ${input.stage}`,
-          description: `Deal ${deal.company} was moved to ${input.stage} stage`,
+          description: `Deal ${deal.company} was moved to ${input.stage} stage (probability updated to ${newProbability}%)`,
           userId: ctx.prismaUser.id,
           dealId: deal.id,
         },

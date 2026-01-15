@@ -34,7 +34,6 @@ model Lead {
   contactEmail String?
   contactPhone String?
   temperature  String     @default("warm")
-  dealValue    Float?
   rating       Int        @default(0)
   status       String     @default("warm")
   notes        String?
@@ -66,6 +65,7 @@ model Contact {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  outreachHistory OutreachHistory[]
 
   @@index([leadId])
 }
@@ -82,9 +82,11 @@ model OutreachHistory {
   createdAt   DateTime @default(now())
   lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id])
+  contact     Contact? @relation(fields: [contactId], references: [id])
 
   @@index([leadId])
   @@index([userId])
+  @@index([contactId])
   @@index([contactDate])
 }
 

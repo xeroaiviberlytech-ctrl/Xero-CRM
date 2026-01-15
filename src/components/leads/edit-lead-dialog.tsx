@@ -42,7 +42,6 @@ export function EditLeadDialog({
   const [formData, setFormData] = useState({
     company: "",
     status: "warm" as "hot" | "warm" | "cold",
-    dealValue: "",
     source: "",
     industry: "",
     conversionProbability: "0",
@@ -55,7 +54,6 @@ export function EditLeadDialog({
       setFormData({
         company: lead.company,
         status: (lead.status as "hot" | "warm" | "cold") || "warm",
-        dealValue: lead.dealValue?.toString() || "",
         source: lead.source || "",
         industry: lead.industry || "",
         conversionProbability: (lead.conversionProbability || 0).toString(),
@@ -85,7 +83,6 @@ export function EditLeadDialog({
       id: leadId,
       company: formData.company,
       status: formData.status,
-      dealValue: formData.dealValue ? parseFloat(formData.dealValue) : null,
       notes: formData.notes || null,
       source: formData.source || null,
       industry: formData.industry || null,
@@ -141,20 +138,6 @@ export function EditLeadDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="dealValue">Deal Value (₹)</Label>
-              <Input
-                id="dealValue"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.dealValue}
-                onChange={(e) =>
-                  setFormData({ ...formData, dealValue: e.target.value })
-                }
-                className="bg-white/40 dark:bg-slate-800/40"
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="source">Source</Label>
               <Input

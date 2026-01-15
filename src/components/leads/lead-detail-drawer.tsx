@@ -85,6 +85,26 @@ export function LeadDetailDrawer({
 
   const utils = trpc.useUtils()
 
+  // Update lead mutation for status changes
+  const updateLead = trpc.leads.update.useMutation({
+    onSuccess: () => {
+      utils.leads.getById.invalidate({ id: leadId! })
+      utils.leads.list.invalidate()
+      toast.success("Lead status updated successfully")
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update lead status")
+    },
+  })
+
+  const handleStatusChange = (newStatus: "hot" | "warm" | "cold") => {
+    if (!leadId || !lead) return
+    updateLead.mutate({
+      id: leadId,
+      status: newStatus,
+    })
+  }
+
   // Get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -167,25 +187,58 @@ export function LeadDetailDrawer({
         ) : lead ? (
           <div className="space-y-6">
             {/* Header with Company Name and Status */}
-            <SheetHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+            <SheetHeader className="relative">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1 pr-24">
                   <SheetTitle className="text-2xl font-bold text-foreground mb-3">
                     {lead.company}
                   </SheetTitle>
                   <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(lead.status)}>
-                      {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-                    </Badge>
+                    <div className="inline-flex items-center rounded-xl glass-strong border-white/40 dark:border-slate-700/40 p-1 shadow-sm">
+                      {(["hot", "warm", "cold"] as const).map((status, index) => (
+                        <button
+                          key={status}
+                          onClick={() => handleStatusChange(status)}
+                          disabled={updateLead.isPending || lead.status === status}
+                          className={`
+                            relative px-4 py-1.5 text-sm font-semibold transition-all duration-200
+                            ${
+                              lead.status === status
+                                ? getStatusColor(status) + " shadow-md scale-105"
+                                : "text-muted-foreground hover:text-foreground hover:bg-white/20 dark:hover:bg-slate-800/20"
+                            }
+                            ${index !== 2 ? "border-r border-white/20 dark:border-slate-700/20 pr-4" : ""}
+                            disabled:opacity-100 disabled:cursor-default
+                            ${updateLead.isPending ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                            rounded-lg
+                          `}
+                        >
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              </div>
+              {/* Action Buttons - Top Right Corner, Grouped Together */}
+              <div className="absolute top-0 right-0 flex items-center gap-2 z-10">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsEditing(!isEditing)}
-                  className="hover:bg-white/40 dark:hover:bg-slate-800/40"
+                  className="h-9 w-9 rounded-lg glass-subtle border-white/20 dark:border-slate-700/20 hover:bg-white/40 dark:hover:bg-slate-800/40 hover:border-white/30 dark:hover:border-slate-600/30 transition-all"
+                  title="Edit Lead"
                 >
                   <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onOpenChange(false)}
+                  className="h-9 w-9 rounded-lg glass-subtle border-white/20 dark:border-slate-700/20 hover:bg-white/40 dark:hover:bg-slate-800/40 hover:border-white/30 dark:hover:border-slate-600/30 transition-all opacity-70 hover:opacity-100"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </SheetHeader>
@@ -246,37 +299,51 @@ export function LeadDetailDrawer({
                   {contacts.map((contact: any) => (
                     <Card
                       key={contact.id}
-                      className="glass-subtle border-white/30 dark:border-slate-700/30"
+                      className={`glass-subtle border-white/30 dark:border-slate-700/30 hover:glass-strong transition-all ${
+                        contact.isPrimary
+                          ? "border-primary/40 dark:border-primary/40"
+                          : ""
+                      }`}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          {/* Avatar */}
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                        <div className="flex items-start gap-4">
+                          {/* Avatar with Initials */}
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${
+                              contact.isPrimary
+                                ? "bg-gradient-to-br from-primary to-primary/80 text-white"
+                                : "bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
+                            }`}
+                          >
                             {getInitials(contact.name)}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-semibold text-foreground">
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0 space-y-2">
+                            {/* Name with Primary Badge */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-foreground text-base">
                                 {contact.name}
                               </p>
                               {contact.isPrimary && (
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-primary/10 text-primary text-xs px-1.5 py-0"
-                                >
+                                <Badge className="bg-primary/15 text-primary border-primary/30 text-xs px-2.5 py-1 font-medium shadow-sm">
                                   Primary
                                 </Badge>
                               )}
                             </div>
+                            
+                            {/* Designation */}
                             {contact.designation && (
-                              <p className="text-sm text-muted-foreground mb-2">
+                              <p className="text-sm text-muted-foreground">
                                 {contact.designation}
                               </p>
                             )}
-                            <div className="space-y-1.5">
+                            
+                            {/* Contact Info - Inline */}
+                            <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
                               {contact.email && (
-                                <div className="flex items-center gap-2 text-sm text-foreground">
-                                  <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex items-center gap-1.5">
+                                  <Mail className="h-3.5 w-3.5" />
                                   <a
                                     href={`mailto:${contact.email}`}
                                     className="hover:text-primary hover:underline truncate"
@@ -286,8 +353,8 @@ export function LeadDetailDrawer({
                                 </div>
                               )}
                               {contact.phone && (
-                                <div className="flex items-center gap-2 text-sm text-foreground">
-                                  <Phone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex items-center gap-1.5">
+                                  <Phone className="h-3.5 w-3.5" />
                                   <a
                                     href={`tel:${contact.phone}`}
                                     className="hover:text-primary hover:underline"
@@ -304,28 +371,31 @@ export function LeadDetailDrawer({
                   ))}
                 </div>
               ) : (
-                <Card className="glass-subtle border-white/30 dark:border-slate-700/30">
+                <Card className="glass-subtle border-primary/40 dark:border-primary/40 hover:glass-strong transition-all">
                   <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                    <div className="flex items-start gap-4">
+                      {/* Avatar with Initials */}
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 bg-gradient-to-br from-primary to-primary/80 text-white">
                         {getInitials(lead.contactName)}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-foreground">
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Name with Primary Badge */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-foreground text-base">
                             {lead.contactName}
                           </p>
-                          <Badge
-                            variant="secondary"
-                            className="bg-primary/10 text-primary text-xs px-1.5 py-0"
-                          >
+                          <Badge className="bg-primary/15 text-primary border-primary/30 text-xs px-2.5 py-1 font-medium shadow-sm">
                             Primary
                           </Badge>
                         </div>
-                        <div className="space-y-1.5 mt-2">
+                        
+                        {/* Contact Info - Inline */}
+                        <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
                           {lead.contactEmail && (
-                            <div className="flex items-center gap-2 text-sm text-foreground">
-                              <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <div className="flex items-center gap-1.5">
+                              <Mail className="h-3.5 w-3.5" />
                               <a
                                 href={`mailto:${lead.contactEmail}`}
                                 className="hover:text-primary hover:underline truncate"
@@ -335,8 +405,8 @@ export function LeadDetailDrawer({
                             </div>
                           )}
                           {lead.contactPhone && (
-                            <div className="flex items-center gap-2 text-sm text-foreground">
-                              <Phone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <div className="flex items-center gap-1.5">
+                              <Phone className="h-3.5 w-3.5" />
                               <a
                                 href={`tel:${lead.contactPhone}`}
                                 className="hover:text-primary hover:underline"
@@ -401,14 +471,6 @@ export function LeadDetailDrawer({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">
-                      Estimated Value
-                    </p>
-                    <p className="font-bold text-foreground text-lg">
-                      {formatCurrencyUSD(lead.dealValue)}
-                    </p>
-                  </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1.5">Source</p>
                     {lead.source ? (

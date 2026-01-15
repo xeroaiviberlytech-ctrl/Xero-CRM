@@ -62,7 +62,6 @@ export const searchRouter = createTRPCRouter({
           description: lead.contactEmail,
           metadata: {
             temperature: lead.temperature,
-            value: lead.dealValue,
           },
         })),
         ...deals.map((deal) => ({

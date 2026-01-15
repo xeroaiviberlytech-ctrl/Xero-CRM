@@ -151,7 +151,6 @@ export default function LeadsPage() {
                 <TableHead className="text-foreground">Company</TableHead>
                 <TableHead className="text-foreground">Primary Contact</TableHead>
                 <TableHead className="text-foreground">Status</TableHead>
-                <TableHead className="text-foreground">Value</TableHead>
                 <TableHead className="text-foreground">Source</TableHead>
                 <TableHead className="text-foreground">Last Contact</TableHead>
                 <TableHead className="text-foreground">Rating</TableHead>
@@ -203,10 +202,9 @@ export default function LeadsPage() {
                         {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-semibold text-foreground">
-                      {formatCurrency(lead.dealValue)}
+                    <TableCell className="text-foreground">
+                      {lead.source || "-"}
                     </TableCell>
-                    <TableCell className="text-foreground">-</TableCell>
                     <TableCell className="text-foreground">
                       {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true })}
                     </TableCell>
