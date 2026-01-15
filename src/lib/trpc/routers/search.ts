@@ -30,7 +30,6 @@ export const searchRouter = createTRPCRouter({
           contactName: true,
           contactEmail: true,
           temperature: true,
-          dealValue: true,
         },
       })
 
