@@ -56,47 +56,111 @@ export const leadsRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Fetch lead - for now, exclude contacts and outreachHistory until migration is run
-      // After migration, these will be included automatically
-      const lead = await ctx.prisma.lead.findUnique({
-        where: { id: input.id },
-        include: {
-          assignedTo: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+      // Try to fetch with all relations, but handle gracefully if some don't exist yet
+      let lead;
+      try {
+        lead = await ctx.prisma.lead.findUnique({
+          where: { id: input.id },
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            deals: {
+              select: {
+                id: true,
+                company: true,
+                value: true,
+                stage: true,
+              },
+            },
+            contacts: {
+              orderBy: [
+                { isPrimary: "desc" },
+                { createdAt: "asc" },
+              ],
+            },
+            outreachHistory: {
+              orderBy: { contactDate: "desc" },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+                contact: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            activities: {
+              orderBy: { createdAt: "desc" },
+              take: 10,
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
             },
           },
-          deals: {
-            select: {
-              id: true,
-              company: true,
-              value: true,
-              stage: true,
-            },
-          },
-          activities: {
-            orderBy: { createdAt: "desc" },
-            take: 10,
+        })
+      } catch (error: any) {
+        // If contacts or outreachHistory don't exist yet (migration not run), fetch without them
+        if (error.message?.includes("contacts") || error.message?.includes("outreachHistory")) {
+          lead = await ctx.prisma.lead.findUnique({
+            where: { id: input.id },
             include: {
-              user: {
+              assignedTo: {
                 select: {
                   id: true,
                   name: true,
                   email: true,
                 },
               },
+              deals: {
+                select: {
+                  id: true,
+                  company: true,
+                  value: true,
+                  stage: true,
+                },
+              },
+              activities: {
+                orderBy: { createdAt: "desc" },
+                take: 10,
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
             },
-          },
-        },
-      })
-
-      // Add empty arrays for contacts and outreachHistory
-      // These will be populated after running the migration
-      if (lead) {
-        (lead as any).contacts = []
-        ;(lead as any).outreachHistory = []
+          })
+          // Add empty arrays for contacts and outreachHistory
+          if (lead) {
+            (lead as any).contacts = []
+            ;(lead as any).outreachHistory = []
+          }
+        } else {
+          throw error
+        }
       }
 
       if (!lead) {

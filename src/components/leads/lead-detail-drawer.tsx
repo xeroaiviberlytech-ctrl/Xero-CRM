@@ -150,7 +150,8 @@ export function LeadDetailDrawer({
   }
 
   const handleSendEmail = () => {
-    const primaryContact = lead?.contacts?.find((c: any) => c.isPrimary) || lead
+    const contacts = (lead as any)?.contacts || []
+    const primaryContact = contacts.find((c: any) => c.isPrimary) || lead
     const email = primaryContact?.email || lead?.contactEmail
     if (email) {
       window.location.href = `mailto:${email}`
@@ -160,7 +161,8 @@ export function LeadDetailDrawer({
   }
 
   const handleCall = () => {
-    const primaryContact = lead?.contacts?.find((c: any) => c.isPrimary) || lead
+    const contacts = (lead as any)?.contacts || []
+    const primaryContact = contacts.find((c: any) => c.isPrimary) || lead
     const phone = primaryContact?.phone || lead?.contactPhone
     if (phone) {
       window.location.href = `tel:${phone}`
@@ -171,7 +173,7 @@ export function LeadDetailDrawer({
 
   if (!leadId) return null
 
-  const contacts = lead?.contacts || []
+  const contacts = (lead as any)?.contacts || []
   const hasContacts = contacts.length > 0
   const primaryContact = hasContacts
     ? contacts.find((c: any) => c.isPrimary) || contacts[0]
@@ -432,9 +434,9 @@ export function LeadDetailDrawer({
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
                   Outreach History
-                  {lead.outreachHistory && lead.outreachHistory.length > 0 && (
+                  {(lead as any).outreachHistory && (lead as any).outreachHistory.length > 0 && (
                     <span className="text-sm font-normal text-muted-foreground">
-                      ({lead.outreachHistory.length})
+                      ({(lead as any).outreachHistory.length})
                     </span>
                   )}
                 </h3>
@@ -442,7 +444,7 @@ export function LeadDetailDrawer({
               </button>
 
               {/* Show preview or empty state */}
-              {lead.outreachHistory && lead.outreachHistory.length > 0 ? (
+              {(lead as any).outreachHistory && (lead as any).outreachHistory.length > 0 ? (
                 <Card className="glass-subtle border-white/30 dark:border-slate-700/30">
                   <CardContent className="p-4">
                     <p className="text-sm text-muted-foreground text-center">
@@ -473,12 +475,12 @@ export function LeadDetailDrawer({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1.5">Source</p>
-                    {lead.source ? (
+                    {(lead as any).source ? (
                       <Badge
                         variant="outline"
                         className="bg-gray-100 dark:bg-gray-800 text-foreground border-gray-300 dark:border-gray-600"
                       >
-                        {lead.source}
+                        {(lead as any).source}
                       </Badge>
                     ) : (
                       <p className="font-semibold text-foreground">Not specified</p>
@@ -489,13 +491,13 @@ export function LeadDetailDrawer({
                       Assigned To
                     </p>
                     <p className="font-semibold text-foreground">
-                      {lead.assignedTo?.name || lead.assignedTo?.email || "Unassigned"}
+                      {(lead as any).assignedTo?.name || (lead as any).assignedTo?.email || "Unassigned"}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1.5">Industry</p>
                     <p className="font-semibold text-foreground">
-                      {lead.industry || "Not specified"}
+                      {(lead as any).industry || "Not specified"}
                     </p>
                   </div>
                 </div>
@@ -505,14 +507,14 @@ export function LeadDetailDrawer({
                       Conversion Probability
                     </p>
                     <span className="text-sm font-bold text-foreground">
-                      {lead.conversionProbability || 0}%
+                      {(lead as any).conversionProbability || 0}%
                     </span>
                   </div>
                   <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary transition-all"
                       style={{
-                        width: `${lead.conversionProbability || 0}%`,
+                        width: `${(lead as any).conversionProbability || 0}%`,
                       }}
                     />
                   </div>
