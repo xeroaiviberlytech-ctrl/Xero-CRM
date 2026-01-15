@@ -116,7 +116,7 @@ export const filtersRouter = createTRPCRouter({
     .input(
       z.object({
         temperature: z.array(z.enum(["hot", "warm", "cold"])).optional(),
-        status: z.array(z.enum(["new", "contacted", "qualified", "converted", "lost"])).optional(),
+        status: z.array(z.enum(["hot", "warm", "cold"])).optional(),
         rating: z.array(z.number().int().min(0).max(5)).optional(),
         minValue: z.number().optional(),
         maxValue: z.number().optional(),

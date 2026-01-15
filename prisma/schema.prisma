@@ -35,7 +35,7 @@ model Lead {
   temperature  String     @default("warm")
   dealValue    Float?
   rating       Int        @default(0)
-  status       String     @default("new")
+  status       String     @default("warm")
   notes        String?
   assignedToId String?
   createdAt    DateTime   @default(now())

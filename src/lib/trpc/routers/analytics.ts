@@ -42,18 +42,18 @@ export const analyticsRouter = createTRPCRouter({
         },
         _sum: { value: true },
       }),
-      // Active leads count - current
+      // Active leads count - current (hot and warm, excluding cold)
       ctx.prisma.lead.count({
         where: {
           assignedToId: ctx.prismaUser.id,
-          status: { not: "lost" },
+          status: { in: ["hot", "warm"] },
         },
       }),
       // Active leads count - previous period
       ctx.prisma.lead.count({
         where: {
           assignedToId: ctx.prismaUser.id,
-          status: { not: "lost" },
+          status: { in: ["hot", "warm"] },
           createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
         },
       }),
@@ -61,11 +61,11 @@ export const analyticsRouter = createTRPCRouter({
       ctx.prisma.lead.count({
         where: { assignedToId: ctx.prismaUser.id },
       }),
-      // Converted leads count
+      // Converted leads count (leads that have deals)
       ctx.prisma.lead.count({
         where: {
           assignedToId: ctx.prismaUser.id,
-          status: "converted",
+          deals: { some: {} },
         },
       }),
       // Previous period total leads
@@ -75,11 +75,11 @@ export const analyticsRouter = createTRPCRouter({
           createdAt: { lt: thirtyDaysAgo },
         },
       }),
-      // Previous period converted leads
+      // Previous period converted leads (leads that have deals)
       ctx.prisma.lead.count({
         where: {
           assignedToId: ctx.prismaUser.id,
-          status: "converted",
+          deals: { some: {} },
           createdAt: { lt: thirtyDaysAgo },
         },
       }),
@@ -529,7 +529,7 @@ export const analyticsRouter = createTRPCRouter({
         const convertedLeads = await ctx.prisma.lead.count({
           where: {
             assignedToId: user.id,
-            status: "converted",
+            deals: { some: {} },
           },
         })
 

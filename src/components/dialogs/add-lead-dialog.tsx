@@ -34,10 +34,9 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
     contactName: "",
     contactEmail: "",
     contactPhone: "",
-    temperature: "warm" as "hot" | "warm" | "cold",
     dealValue: "",
     rating: "0",
-    status: "new" as "new" | "contacted" | "qualified" | "converted" | "lost",
+    status: "warm" as "hot" | "warm" | "cold",
     notes: "",
   })
 
@@ -53,10 +52,9 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
         contactName: "",
         contactEmail: "",
         contactPhone: "",
-        temperature: "warm",
         dealValue: "",
         rating: "0",
-        status: "new",
+        status: "warm",
         notes: "",
       })
     },
@@ -72,7 +70,6 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
       contactName: formData.contactName,
       contactEmail: formData.contactEmail || null,
       contactPhone: formData.contactPhone || null,
-      temperature: formData.temperature,
       dealValue: formData.dealValue ? parseFloat(formData.dealValue) : null,
       rating: parseInt(formData.rating),
       status: formData.status,
@@ -146,11 +143,11 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="temperature">Temperature</Label>
+              <Label htmlFor="status">Status</Label>
               <Select
-                value={formData.temperature}
+                value={formData.status}
                 onValueChange={(value: "hot" | "warm" | "cold") =>
-                  setFormData({ ...formData, temperature: value })
+                  setFormData({ ...formData, status: value })
                 }
               >
                 <SelectTrigger className="bg-white/40 dark:bg-slate-800/40">
@@ -205,18 +202,16 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
             <Select
               value={formData.status}
               onValueChange={(
-                value: "new" | "contacted" | "qualified" | "converted" | "lost"
+                value: "hot" | "warm" | "cold"
               ) => setFormData({ ...formData, status: value })}
             >
               <SelectTrigger className="bg-white/40 dark:bg-slate-800/40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="qualified">Qualified</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
+                <SelectItem value="hot">Hot</SelectItem>
+                <SelectItem value="warm">Warm</SelectItem>
+                <SelectItem value="cold">Cold</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -256,6 +251,11 @@ export function AddLeadDialog({ open, onOpenChange }: AddLeadDialogProps) {
     </Dialog>
   )
 }
+
+
+
+
+
 
 
 

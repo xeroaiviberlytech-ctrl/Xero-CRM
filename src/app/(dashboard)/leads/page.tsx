@@ -35,7 +35,7 @@ export default function LeadsPage() {
   // Fetch leads with filters - optimized with caching
   const { data: leadsData, isLoading } = trpc.leads.list.useQuery(
     {
-      temperature: filter === "all" ? undefined : filter,
+      status: filter === "all" ? undefined : filter,
     },
     { staleTime: 30000 } // Cache for 30 seconds
   )
@@ -147,7 +147,7 @@ export default function LeadsPage() {
               <TableRow className="border-white/20 dark:border-slate-700/20">
                 <TableHead className="text-foreground">Company</TableHead>
                 <TableHead className="text-foreground">Primary Contact</TableHead>
-                <TableHead className="text-foreground">Temperature</TableHead>
+                <TableHead className="text-foreground">Status</TableHead>
                 <TableHead className="text-foreground">Value</TableHead>
                 <TableHead className="text-foreground">Source</TableHead>
                 <TableHead className="text-foreground">Last Contact</TableHead>
@@ -190,14 +190,14 @@ export default function LeadsPage() {
                     <TableCell>
                       <Badge 
                         className={
-                          lead.temperature === "hot" 
+                          lead.status === "hot" 
                             ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
-                            : lead.temperature === "warm"
+                            : lead.status === "warm"
                             ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800"
                             : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800"
                         }
                       >
-                        {lead.temperature.charAt(0).toUpperCase() + lead.temperature.slice(1)}
+                        {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-semibold text-foreground">

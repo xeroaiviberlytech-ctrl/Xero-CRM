@@ -10,7 +10,7 @@ export const leadsRouter = createTRPCRouter({
     .input(
       z
         .object({
-          temperature: z.enum(["all", "hot", "warm", "cold"]).optional().default("all"),
+          status: z.enum(["all", "hot", "warm", "cold"]).optional().default("all"),
           search: z.string().optional(),
         })
         .optional()
@@ -21,8 +21,8 @@ export const leadsRouter = createTRPCRouter({
         assignedToId: ctx.prismaUser.id, // Only show leads assigned to current user
       }
 
-      if (input.temperature && input.temperature !== "all") {
-        where.temperature = input.temperature
+      if (input.status && input.status !== "all") {
+        where.status = input.status
       }
 
       if (input.search) {
@@ -121,7 +121,7 @@ export const leadsRouter = createTRPCRouter({
         temperature: z.enum(["hot", "warm", "cold"]).default("warm"),
         dealValue: z.number().positive().optional().nullable(),
         rating: z.number().int().min(0).max(5).default(0),
-        status: z.enum(["new", "contacted", "qualified", "converted", "lost"]).default("new"),
+        status: z.enum(["hot", "warm", "cold"]).default("warm"),
         notes: z.string().optional().nullable(),
         assignedToId: z.string().optional().nullable(),
       })
@@ -171,7 +171,7 @@ export const leadsRouter = createTRPCRouter({
         temperature: z.enum(["hot", "warm", "cold"]).optional(),
         dealValue: z.number().positive().optional().nullable(),
         rating: z.number().int().min(0).max(5).optional(),
-        status: z.enum(["new", "contacted", "qualified", "converted", "lost"]).optional(),
+        status: z.enum(["hot", "warm", "cold"]).optional(),
         notes: z.string().optional().nullable(),
         assignedToId: z.string().optional().nullable(),
       })
@@ -384,10 +384,10 @@ export const leadsRouter = createTRPCRouter({
         },
       })
 
-      // Update lead status to converted
+      // Update lead status to hot (converted to deal)
       await ctx.prisma.lead.update({
         where: { id: input.leadId },
-        data: { status: "converted" },
+        data: { status: "hot" },
       })
 
       // Create activity log
