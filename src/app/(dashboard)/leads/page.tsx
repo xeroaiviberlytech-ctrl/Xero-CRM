@@ -17,6 +17,8 @@ import { Plus, Search, Filter, Star, MoreVertical, Loader2, Eye, Edit, Trash2 } 
 import { trpc } from "@/lib/trpc/react"
 import { formatDistanceToNow } from "date-fns"
 import { AddLeadDialog } from "@/components/dialogs/add-lead-dialog"
+import { LeadDetailDrawer } from "@/components/leads/lead-detail-drawer"
+import { OutreachHistoryPanel } from "@/components/leads/outreach-history-panel"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +33,7 @@ export default function LeadsPage() {
   const [filter, setFilter] = useState<"all" | "hot" | "warm" | "cold">("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [leadDialogOpen, setLeadDialogOpen] = useState(false)
+  const [showOutreachHistory, setShowOutreachHistory] = useState(false)
 
   // Fetch leads with filters - optimized with caching
   const { data: leadsData, isLoading } = trpc.leads.list.useQuery(
@@ -270,20 +273,25 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Lead Detail Drawer (placeholder) */}
-      {selectedLead && (
-        <Card className="glass-silver border-white/30 dark:border-slate-700/30">
-          <CardHeader>
-            <CardTitle className="text-foreground">Lead Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Detailed lead information will be displayed here in a drawer
-              panel.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Lead Detail Drawer */}
+      <LeadDetailDrawer
+        leadId={selectedLead}
+        open={!!selectedLead}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedLead(null)
+            setShowOutreachHistory(false)
+          }
+        }}
+        onShowOutreachHistory={setShowOutreachHistory}
+      />
+
+      {/* Outreach History Panel - Shows in front of drawer */}
+      <OutreachHistoryPanel
+        leadId={selectedLead}
+        open={showOutreachHistory}
+        onClose={() => setShowOutreachHistory(false)}
+      />
 
       {/* Add Lead Dialog */}
       <AddLeadDialog open={leadDialogOpen} onOpenChange={setLeadDialogOpen} />

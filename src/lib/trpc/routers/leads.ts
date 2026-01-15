@@ -56,6 +56,8 @@ export const leadsRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Fetch lead - for now, exclude contacts and outreachHistory until migration is run
+      // After migration, these will be included automatically
       const lead = await ctx.prisma.lead.findUnique({
         where: { id: input.id },
         include: {
@@ -89,6 +91,13 @@ export const leadsRouter = createTRPCRouter({
           },
         },
       })
+
+      // Add empty arrays for contacts and outreachHistory
+      // These will be populated after running the migration
+      if (lead) {
+        (lead as any).contacts = []
+        ;(lead as any).outreachHistory = []
+      }
 
       if (!lead) {
         throw new TRPCError({
@@ -174,6 +183,9 @@ export const leadsRouter = createTRPCRouter({
         status: z.enum(["hot", "warm", "cold"]).optional(),
         notes: z.string().optional().nullable(),
         assignedToId: z.string().optional().nullable(),
+        source: z.string().optional().nullable(),
+        industry: z.string().optional().nullable(),
+        conversionProbability: z.number().int().min(0).max(100).optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

@@ -21,6 +21,7 @@ model User {
   deals          Deal[]
   leads          Lead[]
   tasks          Task[]
+  outreachHistory OutreachHistory[]
 
   @@index([supabaseUserId])
   @@index([email])
@@ -38,15 +39,53 @@ model Lead {
   status       String     @default("warm")
   notes        String?
   assignedToId String?
+  source       String?    // referral, website, social, etc.
+  industry     String?
+  conversionProbability Int? @default(0)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   activities   Activity[]
   deals        Deal[]
+  contacts     Contact[]
+  outreachHistory OutreachHistory[]
   assignedTo   User?      @relation(fields: [assignedToId], references: [id])
 
   @@index([assignedToId])
   @@index([temperature])
   @@index([status])
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  leadId      String
+  name        String
+  designation String?
+  email       String?
+  phone       String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model OutreachHistory {
+  id          String   @id @default(cuid())
+  leadId      String
+  contactId   String?  // Which contact was contacted
+  userId      String   // Who made the contact
+  type        String   // call, email, meeting, etc.
+  outcome     String?  // positive, negative, followup, neutral
+  notes       String?
+  contactDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([contactDate])
 }
 
 model Deal {
