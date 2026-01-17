@@ -17,6 +17,8 @@ import {
 import { trpc } from "@/lib/trpc/react"
 import { format } from "date-fns"
 import { Loader2 } from "lucide-react"
+import { createPortal } from "react-dom"
+import { useEffect, useState } from "react"
 
 interface OutreachHistoryPanelProps {
   leadId: string | null
@@ -29,6 +31,12 @@ export function OutreachHistoryPanel({
   open,
   onClose,
 }: OutreachHistoryPanelProps) {
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const { data: outreachHistory, isLoading } = trpc.outreach.getByLead.useQuery(
     { leadId: leadId! },
     { enabled: !!leadId && open, staleTime: 30000 }
@@ -71,9 +79,10 @@ export function OutreachHistoryPanel({
 
   if (!open || !leadId) return null
 
-  return (
+  // Use portal to render outside the drawer's DOM hierarchy
+  const panelContent = (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm cursor-pointer"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm cursor-pointer"
       onClick={(e) => {
         // Close if clicking on the backdrop (not the card)
         if (e.target === e.currentTarget) {
@@ -82,7 +91,7 @@ export function OutreachHistoryPanel({
       }}
     >
       <Card 
-        className="glass-silver border-white/30 dark:border-slate-700/30 w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col cursor-default"
+        className="glass-silver border-white/30 dark:border-slate-700/30 w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col cursor-default relative"
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader className="flex-shrink-0">
@@ -182,4 +191,11 @@ export function OutreachHistoryPanel({
       </Card>
     </div>
   )
+
+  // Render in portal to ensure it's above the drawer (Sheet uses z-50, we use z-9999)
+  if (!mounted || typeof window === "undefined") {
+    return null
+  }
+  
+  return createPortal(panelContent, document.body)
 }

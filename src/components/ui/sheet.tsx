@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -34,29 +35,34 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ side = "left", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed z-50 gap-4 glass-silver border-white/30 dark:border-slate-700/30 p-6 shadow-lg transition ease-in-out",
-        side === "left" &&
-          "inset-y-0 left-0 h-full w-[500px] border-r data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=closed]:duration-300",
-        side === "right" &&
-          "inset-y-0 right-0 h-full w-[500px] border-l data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=closed]:duration-300",
-        side === "top" &&
-          "inset-x-0 top-0 border-b data-[state=open]:animate-in data-[state=open]:slide-in-from-top data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top data-[state=closed]:duration-300",
-        side === "bottom" &&
-          "inset-x-0 bottom-0 border-t data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-300",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </DialogPrimitive.Content>
-  </SheetPortal>
-))
+>(({ side = "left", className, children, ...props }, ref) => {
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "fixed z-50 gap-4 glass-silver border-white/30 dark:border-slate-700/30 p-6 shadow-lg transition ease-in-out",
+          side === "left" &&
+            "inset-y-0 left-0 h-full w-[500px] border-r data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=closed]:duration-300",
+          side === "right" &&
+            "inset-y-0 right-0 h-full w-[500px] border-l data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=closed]:duration-300",
+          side === "top" &&
+            "inset-x-0 top-0 border-b data-[state=open]:animate-in data-[state=open]:slide-in-from-top data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top data-[state=closed]:duration-300",
+          side === "bottom" &&
+            "inset-x-0 bottom-0 border-t data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-300",
+          className
+        )}
+        {...props}
+      >
+        <VisuallyHidden.Root>
+          <DialogPrimitive.Title>Sheet Content</DialogPrimitive.Title>
+        </VisuallyHidden.Root>
+        {children}
+      </DialogPrimitive.Content>
+    </SheetPortal>
+  )
+})
 SheetContent.displayName = DialogPrimitive.Content.displayName
 
 const SheetHeader = ({

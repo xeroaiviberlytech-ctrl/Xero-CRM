@@ -284,7 +284,7 @@ export default function LeadsPage() {
         onShowOutreachHistory={setShowOutreachHistory}
       />
 
-      {/* Outreach History Panel - Shows in front of drawer */}
+      {/* Outreach History Panel - Shows when button is clicked */}
       <OutreachHistoryPanel
         leadId={selectedLead}
         open={showOutreachHistory}

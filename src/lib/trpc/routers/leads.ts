@@ -33,21 +33,33 @@ export const leadsRouter = createTRPCRouter({
         ]
       }
 
-      const leads = await ctx.prisma.lead.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        include: {
-          assignedTo: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+      try {
+        const leads = await ctx.prisma.lead.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
             },
           },
-        },
-      })
+        })
 
-      return leads
+        return leads
+      } catch (error: any) {
+        // Handle missing columns gracefully
+        if (error.message?.includes("does not exist") || error.message?.includes("conversionProbability") || error.message?.includes("source")) {
+          console.error("Database schema mismatch - missing columns:", error.message)
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database schema is out of sync. Please run the SQL in prisma/add_missing_lead_columns.sql to add missing columns (conversionProbability, source, industry).",
+          })
+        }
+        throw error
+      }
     }),
 
   /**
@@ -118,8 +130,13 @@ export const leadsRouter = createTRPCRouter({
           },
         })
       } catch (error: any) {
-        // If contacts or outreachHistory don't exist yet (migration not run), fetch without them
-        if (error.message?.includes("contacts") || error.message?.includes("outreachHistory")) {
+        // If Contact table or related tables don't exist yet (migration not run), fetch without them
+        if (
+          error.message?.includes("Contact") || 
+          error.message?.includes("contacts") || 
+          error.message?.includes("outreachHistory") ||
+          error.message?.includes("does not exist")
+        ) {
           lead = await ctx.prisma.lead.findUnique({
             where: { id: input.id },
             include: {
