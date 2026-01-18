@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { User, Bell, Shield, Users } from "lucide-react"
+import { User, Bell, Shield, Users, ArrowRight } from "lucide-react"
 import { trpc } from "@/lib/trpc/react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
+import Link from "next/link"
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -40,13 +41,15 @@ export default function SettingsPage() {
   })
 
   // Update profile data when currentUser loads
-  if (currentUser && profileData.name !== currentUser.name) {
-    setProfileData({
-      name: currentUser.name || "",
-      email: currentUser.email || "",
-      phone: "",
-    })
-  }
+  useEffect(() => {
+    if (currentUser) {
+      setProfileData({
+        name: currentUser.name || "",
+        email: currentUser.email || "",
+        phone: "",
+      })
+    }
+  }, [currentUser?.id]) // Only update when user ID changes
 
   const handleSaveProfile = () => {
     updateProfile.mutate({
@@ -167,7 +170,7 @@ export default function SettingsPage() {
                 Role
               </label>
               <Input 
-                value={currentUser?.role === "admin" ? "Administrator" : "User"}
+                value={currentUser?.membership?.role === "OWNER" ? "Owner" : currentUser?.membership?.role === "ADMIN" ? "Admin" : "User"}
                 disabled
                 className="bg-white/40 dark:bg-slate-800/40 text-foreground opacity-60"
               />
@@ -305,16 +308,27 @@ export default function SettingsPage() {
             <Users className="h-5 w-5 text-muted-foreground" />
             <div>
               <CardTitle className="text-lg font-semibold text-foreground">
-                Team Integrations
+                Team Management
               </CardTitle>
-              <CardDescription>Manage team settings and integrations</CardDescription>
+              <CardDescription>Manage team members, roles, and permissions</CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Team management and integration settings will be displayed here.
-          </p>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-foreground">Team Members</p>
+              <p className="text-sm text-muted-foreground">
+                Invite and manage team members and their roles
+              </p>
+            </div>
+            <Link href="/settings/team">
+              <Button variant="outline" className="glass-subtle">
+                Manage Team
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

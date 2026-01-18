@@ -1,4 +1,4 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
@@ -6,7 +6,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Get all leads with optional filters
    */
-  list: protectedProcedure
+  list: protectedTenantProcedure
     .input(
       z
         .object({
@@ -18,7 +18,12 @@ export const leadsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
-        assignedToId: ctx.prismaUser.id, // Only show leads assigned to current user
+        tenantId: ctx.tenant.id,
+      }
+
+      // Regular users only see their assigned leads, admins/owners see all
+      if (ctx.membership.role === "USER") {
+        where.assignedToId = ctx.prismaUser.id
       }
 
       if (input.temperature && input.temperature !== "all") {
@@ -53,7 +58,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Get single lead by ID
    */
-  getById: protectedProcedure
+  getById: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const lead = await ctx.prisma.lead.findUnique({
@@ -111,7 +116,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Create new lead
    */
-  create: protectedProcedure
+  create: protectedTenantProcedure
     .input(
       z.object({
         company: z.string().min(1, "Company name is required"),
@@ -130,6 +135,7 @@ export const leadsRouter = createTRPCRouter({
       const lead = await ctx.prisma.lead.create({
         data: {
           ...input,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
           assignedToId: input.assignedToId || ctx.prismaUser.id,
         },
         include: {
@@ -151,6 +157,7 @@ export const leadsRouter = createTRPCRouter({
           description: `New lead ${lead.company} was created`,
           userId: ctx.prismaUser.id,
           leadId: lead.id,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
         },
       })
 
@@ -160,7 +167,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Update lead
    */
-  update: protectedProcedure
+  update: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -180,8 +187,10 @@ export const leadsRouter = createTRPCRouter({
       const { id, ...updateData } = input
 
       // Check if lead exists and user has access
-      const existingLead = await ctx.prisma.lead.findUnique({
-        where: { id },
+      const existingLead = await ctx.prisma.lead.findFirst({
+        where: { id,
+          tenantId: ctx.tenant.id,
+        },
       })
 
       if (!existingLead) {
@@ -199,7 +208,10 @@ export const leadsRouter = createTRPCRouter({
       }
 
       const lead = await ctx.prisma.lead.update({
-        where: { id },
+        where: {
+          id,
+          tenantId: ctx.tenant.id,
+        },
         data: updateData,
         include: {
           assignedTo: {
@@ -220,6 +232,7 @@ export const leadsRouter = createTRPCRouter({
           description: `Lead ${lead.company} was updated`,
           userId: ctx.prismaUser.id,
           leadId: lead.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -229,7 +242,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Delete lead
    */
-  delete: protectedProcedure
+  delete: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const lead = await ctx.prisma.lead.findUnique({
@@ -251,7 +264,10 @@ export const leadsRouter = createTRPCRouter({
       }
 
       await ctx.prisma.lead.delete({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
       })
 
       return { success: true }
@@ -260,7 +276,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Update lead temperature
    */
-  updateTemperature: protectedProcedure
+  updateTemperature: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -287,7 +303,10 @@ export const leadsRouter = createTRPCRouter({
       }
 
       return ctx.prisma.lead.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { temperature: input.temperature },
       })
     }),
@@ -295,7 +314,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Update lead rating
    */
-  updateRating: protectedProcedure
+  updateRating: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -322,7 +341,10 @@ export const leadsRouter = createTRPCRouter({
       }
 
       return ctx.prisma.lead.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { rating: input.rating },
       })
     }),
@@ -330,7 +352,7 @@ export const leadsRouter = createTRPCRouter({
   /**
    * Convert lead to deal
    */
-  convertToDeal: protectedProcedure
+  convertToDeal: protectedTenantProcedure
     .input(
       z.object({
         leadId: z.string(),
@@ -371,6 +393,7 @@ export const leadsRouter = createTRPCRouter({
           leadId: lead.id,
           expectedClose: input.expectedClose,
           notes: input.notes,
+          tenantId: ctx.tenant.id,
         },
         include: {
           owner: {
@@ -386,7 +409,10 @@ export const leadsRouter = createTRPCRouter({
 
       // Update lead status to converted
       await ctx.prisma.lead.update({
-        where: { id: input.leadId },
+        where: {
+          id: input.leadId,
+          tenantId: ctx.tenant.id,
+        },
         data: { status: "converted" },
       })
 
@@ -399,6 +425,7 @@ export const leadsRouter = createTRPCRouter({
           userId: ctx.prismaUser.id,
           leadId: lead.id,
           dealId: deal.id,
+          tenantId: ctx.tenant.id,
         },
       })
 

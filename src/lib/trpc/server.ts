@@ -3,7 +3,21 @@ import { ZodError } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma/client"
 import type { User as PrismaUser } from "@prisma/client"
+import { Role } from "@prisma/client"
+import { supabaseAdmin } from "./../server/supabaseAdmin"
 
+export function requireRole(ctx: any, allowedRoles: Role[]) {
+  if (!ctx.membership) {
+    throw new TRPCError({ code: "UNAUTHORIZED" })
+  }
+
+  if (!allowedRoles.includes(ctx.membership.role)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have permission to perform this action",
+    })
+  }
+}
 /**
  * Get or create Prisma User from Supabase auth user
  * This syncs Supabase authentication with our Prisma User model
@@ -46,42 +60,93 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
   // Get Supabase user from server
   let supabaseUser = null
   let prismaUser: PrismaUser | null = null
+  let membership = null
+  let tenant = null
 
   try {
     const supabase = await createClient()
+
     if (supabase && typeof supabase.auth?.getUser === "function") {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
       supabaseUser = user
 
-      // If we have a Supabase user, sync with Prisma User
+      // Sync Supabase user → Prisma user
       if (supabaseUser?.id && supabaseUser?.email) {
         try {
           prismaUser = await getOrCreatePrismaUser(
             supabaseUser.id,
             supabaseUser.email,
-            supabaseUser.user_metadata?.name || supabaseUser.user_metadata?.full_name
+            supabaseUser.user_metadata?.name ||
+              supabaseUser.user_metadata?.full_name
           )
         } catch (error) {
           console.error("Error syncing Prisma user:", error)
-          // Continue without prismaUser if sync fails
         }
+      }
+
+      // ✅ STEP 1 (THIS WAS MISSING)
+      if (prismaUser) {
+        membership = await prisma.membership.findFirst({
+          where: {
+            userId: prismaUser.id,
+            status: "active",
+          },
+          include: {
+            tenant: true,
+          },
+        })
+        // 👇 NEW: Auto-create tenant + OWNER membership for first-time users
+if (!membership) {
+  const tenant = await prisma.tenant.create({
+    data: {
+      name: prismaUser.name
+        ? `${prismaUser.name}'s Workspace`
+        : "My Workspace",
+      slug: crypto.randomUUID(),
+    },
+  })
+
+  membership = await prisma.membership.create({
+    data: {
+      userId: prismaUser.id,
+      tenantId: tenant.id,
+      role: "OWNER",
+      status: "active",
+    },
+    include: {
+      tenant: true,
+    },
+  })
+}
+        tenant = membership?.tenant ?? null
+      }
+
+      return {
+        supabase,
+        user: supabaseUser,
+        prismaUser,
+        tenant,
+        membership,
+        prisma,
+        supabaseAdmin,
       }
     }
   } catch (error) {
-    // Supabase not configured or auth failed - continue without user
-    // This is expected during development if Supabase is not set up yet
-    console.warn("Supabase auth check failed:", error)
+    console.error("Error creating context:", error)
   }
 
   return {
-    ...opts,
-    user: supabaseUser,
-    prismaUser, // Add Prisma user to context
+    user: null,
+    prismaUser: null,
+    tenant: null,
+    membership: null,
     prisma,
   }
 }
+
 
 const t = initTRPC.context<typeof createTRPCContext>().create({
   errorFormatter({ shape, error }) {
@@ -99,7 +164,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
 export const createTRPCRouter = t.router
 export const publicProcedure = t.procedure
 
-// Protected procedure that requires authentication
+// Protected procedure that only requires authentication (no tenant check)
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.user || !ctx.prismaUser) {
     throw new TRPCError({
@@ -107,11 +172,47 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
       message: "You must be logged in to access this resource",
     })
   }
+
   return next({
     ctx: {
       ...ctx,
-      user: ctx.user, // Supabase user - guaranteed to exist
-      prismaUser: ctx.prismaUser, // Prisma user - guaranteed to exist
+      user: ctx.user,
+      prismaUser: ctx.prismaUser,
+    },
+  })
+})
+
+// Protected procedure that requires authentication AND active tenant membership
+export const protectedTenantProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.user || !ctx.prismaUser) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be logged in to access this resource",
+    })
+  }
+
+  // Verify user has an active membership with a tenant
+  if (!ctx.membership || ctx.membership.status !== "active") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have an active membership. Please contact your administrator.",
+    })
+  }
+
+  // Ensure tenant exists
+  if (!ctx.tenant) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "No tenant associated with your membership. Please contact your administrator.",
+    })
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      prismaUser: ctx.prismaUser,
+      tenant: ctx.tenant,
+      membership: ctx.membership,
     },
   })
 })

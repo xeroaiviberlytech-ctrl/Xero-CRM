@@ -1,12 +1,48 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
 export const usersRouter = createTRPCRouter({
   /**
-   * Get current user profile
+   * Update user info (admin/owner only)
    */
-  getCurrent: protectedProcedure.query(async ({ ctx }) => {
+  update: protectedTenantProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        email: z.string().email(),
+        name: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only owner or admin can update users
+      if (ctx.membership.role !== "OWNER" && ctx.membership.role !== "ADMIN") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only owners and admins can update users",
+        })
+      }
+
+      const updatedUser = await ctx.prisma.user.update({
+        where: { id: input.id },
+        data: {
+          email: input.email,
+          name: input.name,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          updatedAt: true,
+        },
+      })
+
+      return updatedUser
+    }),
+  /**
+   * Get current user profile with membership info
+   */
+  getCurrent: protectedTenantProcedure.query(async ({ ctx }) => {
     return {
       id: ctx.prismaUser.id,
       email: ctx.prismaUser.email,
@@ -15,13 +51,19 @@ export const usersRouter = createTRPCRouter({
       role: ctx.prismaUser.role,
       createdAt: ctx.prismaUser.createdAt,
       updatedAt: ctx.prismaUser.updatedAt,
+      membership: {
+        role: ctx.membership.role,
+        status: ctx.membership.status,
+        tenantId: ctx.tenant.id,
+        tenantName: ctx.tenant.name,
+      },
     }
   }),
 
   /**
    * Update user profile (users cannot change their own role)
    */
-  updateProfile: protectedProcedure
+  updateProfile: protectedTenantProcedure
     .input(
       z.object({
         name: z.string().min(1).max(100).optional(),
@@ -51,7 +93,7 @@ export const usersRouter = createTRPCRouter({
   /**
    * List all users (admin only)
    */
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: protectedTenantProcedure.query(async ({ ctx }) => {
     if (ctx.prismaUser.role !== "admin") {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -60,6 +102,14 @@ export const usersRouter = createTRPCRouter({
     }
 
     const users = await ctx.prisma.user.findMany({
+      where: {
+        memberships: {
+          some: {
+            tenantId: ctx.tenant.id,
+            status: "active",
+          },
+        },
+      },
       select: {
         id: true,
         email: true,
@@ -69,58 +119,14 @@ export const usersRouter = createTRPCRouter({
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: { createdAt: "desc" },
     })
-
     return users
   }),
 
   /**
-   * Update user role (admin only)
-   */
-  updateRole: protectedProcedure
-    .input(
-      z.object({
-        userId: z.string(),
-        role: z.enum(["user", "admin"]),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      // Only admins can change roles
-      if (ctx.prismaUser.role !== "admin") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only admins can change user roles",
-        })
-      }
-
-      // Prevent admins from removing their own admin role
-      if (input.userId === ctx.prismaUser.id && input.role === "user") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You cannot remove your own admin role",
-        })
-      }
-
-      const updatedUser = await ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: { role: input.role },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          updatedAt: true,
-        },
-      })
-
-      return updatedUser
-    }),
-
-  /**
    * Get user by ID (for admin or own profile)
    */
-  getById: protectedProcedure
+  getById: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       // Users can only view their own profile unless they're admin

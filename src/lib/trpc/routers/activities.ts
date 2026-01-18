@@ -1,12 +1,13 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
+import { Role } from "@prisma/client"
 
 export const activitiesRouter = createTRPCRouter({
   /**
    * Get activity feed with pagination
    */
-  list: protectedProcedure
+  list: protectedTenantProcedure
     .input(
       z
         .object({
@@ -20,11 +21,14 @@ export const activitiesRouter = createTRPCRouter({
         .default({})
     )
     .query(async ({ ctx, input }) => {
-      const where: any = {}
+      const isAdminOrOwner = ctx.membership.role === Role.OWNER || ctx.membership.role === Role.ADMIN
+      const where: any = {
+        tenantId: ctx.tenant.id,
+      }
 
-      // Filter by user (default to current user unless admin)
+      // Filter by user (admins see all, regular users see only their own)
       if (input.userId) {
-        if (ctx.prismaUser.role === "admin" || input.userId === ctx.prismaUser.id) {
+        if (isAdminOrOwner || input.userId === ctx.prismaUser.id) {
           where.userId = input.userId
         } else {
           throw new TRPCError({
@@ -32,7 +36,8 @@ export const activitiesRouter = createTRPCRouter({
             message: "You can only view your own activities",
           })
         }
-      } else {
+      } else if (!isAdminOrOwner) {
+        // Regular users only see their activities
         where.userId = ctx.prismaUser.id
       }
 
@@ -50,7 +55,7 @@ export const activitiesRouter = createTRPCRouter({
           })
         }
 
-        if (lead.assignedToId !== ctx.prismaUser.id && ctx.prismaUser.role !== "admin") {
+        if (!isAdminOrOwner && lead.assignedToId !== ctx.prismaUser.id) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "You don't have access to this lead's activities",
@@ -83,6 +88,9 @@ export const activitiesRouter = createTRPCRouter({
 
         where.dealId = input.dealId
       }
+
+      // Add tenant isolation
+      where.tenantId = ctx.tenant.id
 
       const activities = await ctx.prisma.activity.findMany({
         where,
@@ -129,7 +137,7 @@ export const activitiesRouter = createTRPCRouter({
   /**
    * Get activities for specific user
    */
-  getByUser: protectedProcedure
+  getByUser: protectedTenantProcedure
     .input(
       z.object({
         userId: z.string(),
@@ -148,6 +156,7 @@ export const activitiesRouter = createTRPCRouter({
       const activities = await ctx.prisma.activity.findMany({
         where: {
           userId: input.userId,
+          tenantId: ctx.tenant.id,
         },
         take: input.limit,
         orderBy: { createdAt: "desc" },
@@ -181,7 +190,7 @@ export const activitiesRouter = createTRPCRouter({
   /**
    * Get activities for specific lead
    */
-  getByLead: protectedProcedure
+  getByLead: protectedTenantProcedure
     .input(
       z.object({
         leadId: z.string(),
@@ -211,6 +220,7 @@ export const activitiesRouter = createTRPCRouter({
       const activities = await ctx.prisma.activity.findMany({
         where: {
           leadId: input.leadId,
+          tenantId: ctx.tenant.id,
         },
         take: input.limit,
         orderBy: { createdAt: "desc" },
@@ -237,7 +247,7 @@ export const activitiesRouter = createTRPCRouter({
   /**
    * Get activities for specific deal
    */
-  getByDeal: protectedProcedure
+  getByDeal: protectedTenantProcedure
     .input(
       z.object({
         dealId: z.string(),
@@ -267,6 +277,7 @@ export const activitiesRouter = createTRPCRouter({
       const activities = await ctx.prisma.activity.findMany({
         where: {
           dealId: input.dealId,
+          tenantId: ctx.tenant.id,
         },
         take: input.limit,
         orderBy: { createdAt: "desc" },
@@ -294,7 +305,7 @@ export const activitiesRouter = createTRPCRouter({
   /**
    * Create activity log entry
    */
-  create: protectedProcedure
+  create: protectedTenantProcedure
     .input(
       z.object({
         type: z.string().min(1, "Activity type is required"),
@@ -355,6 +366,7 @@ export const activitiesRouter = createTRPCRouter({
           userId: ctx.prismaUser.id,
           leadId: input.leadId || undefined,
           dealId: input.dealId || undefined,
+          tenantId: ctx.tenant.id,
         },
         include: {
           user: {

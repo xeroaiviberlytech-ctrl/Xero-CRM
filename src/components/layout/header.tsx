@@ -5,6 +5,7 @@ import { Bell, Search, User, LogOut, RefreshCw, Download, Filter } from "lucide-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { InvitationsNotification } from "@/components/layout/invitations-notification"
 import { useAuth } from "@/contexts/auth-context"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -34,6 +35,12 @@ export function DashboardHeader() {
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false)
 
+  // Fetch current user data with membership info
+  const { data: currentUser } = trpc.users.getCurrent.useQuery(undefined, {
+    enabled: !!user,
+    staleTime: 60000, // Cache for 1 minute
+  })
+
   // Fetch recent activities for notification count
   const { data: recentActivities } = trpc.analytics.getRecentActivities.useQuery(
     { limit: 10 },
@@ -49,13 +56,19 @@ export function DashboardHeader() {
       }).length
     : 0
   
-  const userInitials = user?.email
-    ?.split("@")[0]
-    ?.substring(0, 2)
-    ?.toUpperCase() || "SC"
-  
-  const userName = user?.user_metadata?.name || "Sarah Chen"
-  const userRole = user?.user_metadata?.role || "sales"
+  // Use real user data from database
+  const userName = currentUser?.name || user?.email?.split("@")[0] || "User"
+  const userRole = currentUser?.membership?.role?.toLowerCase() || "user"
+  const userInitials = currentUser?.name
+    ?.split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .substring(0, 2) || 
+    user?.email
+      ?.split("@")[0]
+      ?.substring(0, 2)
+      ?.toUpperCase() || "U"
 
   // Refresh data handler
   const handleRefresh = () => {
@@ -245,6 +258,8 @@ export function DashboardHeader() {
         {/* Right Side Actions */}
         <div className="flex items-center space-x-3">
           <ThemeToggle />
+          
+          <InvitationsNotification />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

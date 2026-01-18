@@ -1,11 +1,11 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 
 export const searchRouter = createTRPCRouter({
   /**
    * Global search across leads, deals, and contacts
    */
-  global: protectedProcedure
+  global: protectedTenantProcedure
     .input(
       z.object({
         query: z.string().min(1, "Search query is required"),
@@ -16,6 +16,7 @@ export const searchRouter = createTRPCRouter({
       // Search leads
       const leads = await ctx.prisma.lead.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           assignedToId: ctx.prismaUser.id,
           OR: [
             { company: { contains: input.query, mode: "insensitive" } },
@@ -37,6 +38,7 @@ export const searchRouter = createTRPCRouter({
       // Search deals
       const deals = await ctx.prisma.deal.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           ownerId: ctx.prismaUser.id,
           OR: [
             { company: { contains: input.query, mode: "insensitive" } },
@@ -90,7 +92,7 @@ export const searchRouter = createTRPCRouter({
   /**
    * Search leads only
    */
-  leads: protectedProcedure
+  leads: protectedTenantProcedure
     .input(
       z.object({
         query: z.string().min(1, "Search query is required"),
@@ -100,6 +102,7 @@ export const searchRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const leads = await ctx.prisma.lead.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           assignedToId: ctx.prismaUser.id,
           OR: [
             { company: { contains: input.query, mode: "insensitive" } },
@@ -127,7 +130,7 @@ export const searchRouter = createTRPCRouter({
   /**
    * Search deals only
    */
-  deals: protectedProcedure
+  deals: protectedTenantProcedure
     .input(
       z.object({
         query: z.string().min(1, "Search query is required"),
@@ -137,6 +140,7 @@ export const searchRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const deals = await ctx.prisma.deal.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           ownerId: ctx.prismaUser.id,
           OR: [
             { company: { contains: input.query, mode: "insensitive" } },
@@ -168,7 +172,7 @@ export const searchRouter = createTRPCRouter({
   /**
    * Search contacts (from leads)
    */
-  contacts: protectedProcedure
+  contacts: protectedTenantProcedure
     .input(
       z.object({
         query: z.string().min(1, "Search query is required"),
@@ -178,6 +182,7 @@ export const searchRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const leads = await ctx.prisma.lead.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           assignedToId: ctx.prismaUser.id,
           OR: [
             { contactName: { contains: input.query, mode: "insensitive" } },

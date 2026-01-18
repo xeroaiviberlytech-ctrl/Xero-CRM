@@ -1,4 +1,4 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
@@ -6,7 +6,7 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Get all deals with optional filters
    */
-  list: protectedProcedure
+  list: protectedTenantProcedure
     .input(
       z
         .object({
@@ -21,7 +21,12 @@ export const dealsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
-        ownerId: ctx.prismaUser.id, // Only show deals owned by current user
+        tenantId: ctx.tenant.id,
+      }
+
+      // Regular users only see their owned deals, admins/owners see all
+      if (ctx.membership.role === "USER") {
+        where.ownerId = ctx.prismaUser.id
       }
 
       if (input.stage && input.stage !== "all") {
@@ -36,7 +41,10 @@ export const dealsRouter = createTRPCRouter({
       }
 
       const deals = await ctx.prisma.deal.findMany({
-        where,
+        where: {
+          ...where,
+          tenantId: ctx.tenant.id,
+        },
         orderBy: { createdAt: "desc" },
         include: {
           owner: {
@@ -62,11 +70,18 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Get deals grouped by stage (for Kanban board)
    */
-  getByStage: protectedProcedure.query(async ({ ctx }) => {
+  getByStage: protectedTenantProcedure.query(async ({ ctx }) => {
+    const where: any = {
+      tenantId: ctx.tenant.id,
+    }
+
+    // Regular users only see their owned deals, admins/owners see all
+    if (ctx.membership.role === "USER") {
+      where.ownerId = ctx.prismaUser.id
+    }
+
     const deals = await ctx.prisma.deal.findMany({
-      where: {
-        ownerId: ctx.prismaUser.id,
-      },
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         owner: {
@@ -100,10 +115,11 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Get stage statistics (totals and counts)
    */
-  getStageStats: protectedProcedure.query(async ({ ctx }) => {
+  getStageStats: protectedTenantProcedure.query(async ({ ctx }) => {
     const deals = await ctx.prisma.deal.findMany({
       where: {
         ownerId: ctx.prismaUser.id,
+        tenantId: ctx.tenant.id,
       },
       select: {
         stage: true,
@@ -134,11 +150,14 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Get single deal by ID
    */
-  getById: protectedProcedure
+  getById: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const deal = await ctx.prisma.deal.findUnique({
-        where: { id: input.id },
+        where: { 
+          id: input.id,
+          tenantId: ctx.tenant.id,
+         },
         include: {
           owner: {
             select: {
@@ -195,7 +214,7 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Create new deal
    */
-  create: protectedProcedure
+  create: protectedTenantProcedure
     .input(
       z.object({
         company: z.string().min(1, "Company name is required"),
@@ -212,7 +231,10 @@ export const dealsRouter = createTRPCRouter({
       // If leadId is provided, verify it exists and user has access
       if (input.leadId) {
         const lead = await ctx.prisma.lead.findUnique({
-          where: { id: input.leadId },
+          where: { 
+          id: input.leadId,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
+           },
         })
 
         if (!lead) {
@@ -233,6 +255,7 @@ export const dealsRouter = createTRPCRouter({
       const deal = await ctx.prisma.deal.create({
         data: {
           ...input,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
           ownerId: input.ownerId || ctx.prismaUser.id,
         },
         include: {
@@ -262,6 +285,7 @@ export const dealsRouter = createTRPCRouter({
           userId: ctx.prismaUser.id,
           dealId: deal.id,
           leadId: deal.leadId || undefined,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
         },
       })
 
@@ -271,7 +295,7 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Update deal
    */
-  update: protectedProcedure
+  update: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -289,7 +313,10 @@ export const dealsRouter = createTRPCRouter({
 
       // Check if deal exists and user has access
       const existingDeal = await ctx.prisma.deal.findUnique({
-        where: { id },
+        where: { 
+          id,
+          tenantId: ctx.tenant.id,
+        },
       })
 
       if (!existingDeal) {
@@ -328,7 +355,10 @@ export const dealsRouter = createTRPCRouter({
       }
 
       const deal = await ctx.prisma.deal.update({
-        where: { id },
+        where: {
+          id,
+          tenantId: ctx.tenant.id,
+        },
         data: cleanUpdateData,
         include: {
           owner: {
@@ -356,6 +386,7 @@ export const dealsRouter = createTRPCRouter({
           description: `Deal ${deal.company} was updated`,
           userId: ctx.prismaUser.id,
           dealId: deal.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -365,11 +396,14 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Delete deal
    */
-  delete: protectedProcedure
+  delete: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const deal = await ctx.prisma.deal.findUnique({
-        where: { id: input.id },
+        where: { 
+          id:input.id,
+          tenantId: ctx.tenant.id,
+         },
       })
 
       if (!deal) {
@@ -387,7 +421,10 @@ export const dealsRouter = createTRPCRouter({
       }
 
       await ctx.prisma.deal.delete({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
       })
 
       return { success: true }
@@ -396,7 +433,7 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Update deal stage (for drag & drop in Kanban)
    */
-  updateStage: protectedProcedure
+  updateStage: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -405,7 +442,10 @@ export const dealsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const deal = await ctx.prisma.deal.findUnique({
-        where: { id: input.id },
+        where: { 
+          id: input.id,
+          tenantId: ctx.tenant.id,
+         },
       })
 
       if (!deal) {
@@ -423,7 +463,10 @@ export const dealsRouter = createTRPCRouter({
       }
 
       const updatedDeal = await ctx.prisma.deal.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { stage: input.stage },
         include: {
           owner: {
@@ -451,6 +494,7 @@ export const dealsRouter = createTRPCRouter({
           description: `Deal ${deal.company} was moved to ${input.stage} stage`,
           userId: ctx.prismaUser.id,
           dealId: deal.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -460,7 +504,7 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Update deal probability
    */
-  updateProbability: protectedProcedure
+  updateProbability: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -469,7 +513,9 @@ export const dealsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const deal = await ctx.prisma.deal.findUnique({
-        where: { id: input.id },
+        where: { id: input.id,
+          tenantId: ctx.tenant.id
+         },
       })
 
       if (!deal) {
@@ -487,7 +533,10 @@ export const dealsRouter = createTRPCRouter({
       }
 
       return ctx.prisma.deal.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { probability: input.probability },
       })
     }),
@@ -495,7 +544,7 @@ export const dealsRouter = createTRPCRouter({
   /**
    * Update deal owner (reassign)
    */
-  updateOwner: protectedProcedure
+  updateOwner: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -504,7 +553,10 @@ export const dealsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const deal = await ctx.prisma.deal.findUnique({
-        where: { id: input.id },
+        where: { 
+          id: input.id,
+          tenantId: ctx.tenant.id,
+         },
       })
 
       if (!deal) {
@@ -523,11 +575,21 @@ export const dealsRouter = createTRPCRouter({
       }
 
       // Verify new owner exists
-      const newOwner = await ctx.prisma.user.findUnique({
-        where: { id: input.ownerId },
+      const newOwnerMembership = await ctx.prisma.user.findFirst({
+        where: { 
+          id: input.ownerId, 
+          memberships: {
+            some: {
+              tenantId: ctx.tenant.id,
+            },
+          },
+        },
+        include: {
+          memberships: true,
+        },
       })
 
-      if (!newOwner) {
+      if (!newOwnerMembership) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "New owner not found",
@@ -535,7 +597,10 @@ export const dealsRouter = createTRPCRouter({
       }
 
       const updatedDeal = await ctx.prisma.deal.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { ownerId: input.ownerId },
         include: {
           owner: {
@@ -553,9 +618,10 @@ export const dealsRouter = createTRPCRouter({
         data: {
           type: "deal_reassigned",
           title: `Deal reassigned`,
-          description: `Deal ${deal.company} was reassigned to ${newOwner.name}`,
+          description: `Deal ${deal.company} was reassigned to ${newOwnerMembership.name}`,
           userId: ctx.prismaUser.id,
           dealId: deal.id,
+          tenantId: ctx.tenant.id,
         },
       })
 

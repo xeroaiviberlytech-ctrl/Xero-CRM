@@ -1,4 +1,4 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
@@ -6,7 +6,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Get all tasks with optional filters
    */
-  list: protectedProcedure
+  list: protectedTenantProcedure
     .input(
       z
         .object({
@@ -19,7 +19,12 @@ export const tasksRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
-        assignedToId: ctx.prismaUser.id, // Only show tasks assigned to current user
+        tenantId: ctx.tenant.id,
+      }
+
+      // Regular users only see their assigned tasks, admins/owners see all
+      if (ctx.membership.role === "USER") {
+        where.assignedToId = ctx.prismaUser.id
       }
 
       if (input.status && input.status !== "all") {
@@ -58,11 +63,18 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Get tasks grouped by status (for Kanban board)
    */
-  getByStatus: protectedProcedure.query(async ({ ctx }) => {
+  getByStatus: protectedTenantProcedure.query(async ({ ctx }) => {
+    const where: any = {
+      tenantId: ctx.tenant.id,
+    }
+
+    // Regular users only see their assigned tasks, admins/owners see all
+    if (ctx.membership.role === "USER") {
+      where.assignedToId = ctx.prismaUser.id
+    }
+
     const tasks = await ctx.prisma.task.findMany({
-      where: {
-        assignedToId: ctx.prismaUser.id,
-      },
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         assignedTo: {
@@ -89,9 +101,10 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Get task statistics (total, by status counts)
    */
-  getStats: protectedProcedure.query(async ({ ctx }) => {
+  getStats: protectedTenantProcedure.query(async ({ ctx }) => {
     const tasks = await ctx.prisma.task.findMany({
       where: {
+        tenantId: ctx.tenant.id,
         assignedToId: ctx.prismaUser.id,
       },
       select: {
@@ -124,7 +137,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Get single task by ID
    */
-  getById: protectedProcedure
+  getById: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const task = await ctx.prisma.task.findUnique({
@@ -161,7 +174,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Create new task
    */
-  create: protectedProcedure
+  create: protectedTenantProcedure
     .input(
       z.object({
         title: z.string().min(1, "Task title is required"),
@@ -193,6 +206,7 @@ export const tasksRouter = createTRPCRouter({
       const task = await ctx.prisma.task.create({
         data: {
           ...input,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
           assignedToId,
         },
         include: {
@@ -213,6 +227,7 @@ export const tasksRouter = createTRPCRouter({
           title: `Task created: ${task.title}`,
           description: `New task ${task.title} was created`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
         },
       })
 
@@ -222,7 +237,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Update task
    */
-  update: protectedProcedure
+  update: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -293,7 +308,10 @@ export const tasksRouter = createTRPCRouter({
       }
 
       const task = await ctx.prisma.task.update({
-        where: { id },
+        where: {
+          id,
+          tenantId: ctx.tenant.id,
+        },
         data: cleanUpdateData,
         include: {
           assignedTo: {
@@ -313,6 +331,7 @@ export const tasksRouter = createTRPCRouter({
           title: `Task updated: ${task.title}`,
           description: `Task ${task.title} was updated`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -322,7 +341,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Delete task
    */
-  delete: protectedProcedure
+  delete: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.prisma.task.findUnique({
@@ -344,7 +363,10 @@ export const tasksRouter = createTRPCRouter({
       }
 
       await ctx.prisma.task.delete({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
       })
 
       return { success: true }
@@ -353,7 +375,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Update task status (for drag & drop in Kanban)
    */
-  updateStatus: protectedProcedure
+  updateStatus: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -380,7 +402,10 @@ export const tasksRouter = createTRPCRouter({
       }
 
       const updatedTask = await ctx.prisma.task.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { status: input.status },
         include: {
           assignedTo: {
@@ -400,6 +425,7 @@ export const tasksRouter = createTRPCRouter({
           title: `Task moved to ${input.status}`,
           description: `Task ${task.title} was moved to ${input.status} status`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -409,7 +435,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Update task priority
    */
-  updatePriority: protectedProcedure
+  updatePriority: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -436,7 +462,10 @@ export const tasksRouter = createTRPCRouter({
       }
 
       return ctx.prisma.task.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { priority: input.priority },
       })
     }),
@@ -444,7 +473,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Toggle task completion
    */
-  toggleComplete: protectedProcedure
+  toggleComplete: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const task = await ctx.prisma.task.findUnique({
@@ -468,7 +497,10 @@ export const tasksRouter = createTRPCRouter({
       const newStatus = task.status === "completed" ? "todo" : "completed"
 
       const updatedTask = await ctx.prisma.task.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { status: newStatus },
         include: {
           assignedTo: {
@@ -488,6 +520,7 @@ export const tasksRouter = createTRPCRouter({
           title: `Task ${newStatus === "completed" ? "completed" : "reopened"}: ${task.title}`,
           description: `Task ${task.title} was ${newStatus === "completed" ? "marked as completed" : "reopened"}`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -497,7 +530,7 @@ export const tasksRouter = createTRPCRouter({
   /**
    * Assign task to user
    */
-  assign: protectedProcedure
+  assign: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -537,7 +570,10 @@ export const tasksRouter = createTRPCRouter({
       }
 
       const updatedTask = await ctx.prisma.task.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { assignedToId: input.assignedToId },
         include: {
           assignedTo: {
@@ -557,6 +593,7 @@ export const tasksRouter = createTRPCRouter({
           title: `Task reassigned`,
           description: `Task ${task.title} was reassigned to ${newAssignee.name}`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id,
         },
       })
 

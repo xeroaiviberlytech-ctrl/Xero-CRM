@@ -1,15 +1,30 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
+import { Role } from "@prisma/client"
 
 export const analyticsRouter = createTRPCRouter({
   /**
    * Get dashboard statistics (KPI cards)
    */
-  getDashboardStats: protectedProcedure.query(async ({ ctx }) => {
+  getDashboardStats: protectedTenantProcedure.query(async ({ ctx }) => {
     // Define date ranges: current period (last 30 days) and previous period (30-60 days ago)
     const now = new Date()
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+
+    // Determine if user should see all data or just their own
+    const isAdminOrOwner = ctx.membership.role === Role.OWNER || ctx.membership.role === Role.ADMIN
+    
+    // Build base filters
+    const dealFilter: any = { tenantId: ctx.tenant.id }
+    const leadFilter: any = { tenantId: ctx.tenant.id }
+    const campaignFilter: any = { tenantId: ctx.tenant.id }
+    
+    if (!isAdminOrOwner) {
+      dealFilter.ownerId = ctx.prismaUser.id
+      leadFilter.assignedToId = ctx.prismaUser.id
+      campaignFilter.createdById = ctx.prismaUser.id
+    }
 
     // Run all queries in parallel for better performance
     const [
@@ -27,7 +42,7 @@ export const analyticsRouter = createTRPCRouter({
       // Current period revenue - use aggregation for better performance
       ctx.prisma.deal.aggregate({
         where: {
-          ownerId: ctx.prismaUser.id,
+          ...dealFilter,
           stage: "closed-won",
           createdAt: { gte: thirtyDaysAgo },
         },
@@ -36,7 +51,7 @@ export const analyticsRouter = createTRPCRouter({
       // Previous period revenue
       ctx.prisma.deal.aggregate({
         where: {
-          ownerId: ctx.prismaUser.id,
+          ...dealFilter,
           stage: "closed-won",
           createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
         },
@@ -45,40 +60,40 @@ export const analyticsRouter = createTRPCRouter({
       // Active leads count - current
       ctx.prisma.lead.count({
         where: {
-          assignedToId: ctx.prismaUser.id,
+          ...leadFilter,
           status: { not: "lost" },
         },
       }),
       // Active leads count - previous period
       ctx.prisma.lead.count({
         where: {
-          assignedToId: ctx.prismaUser.id,
+          ...leadFilter,
           status: { not: "lost" },
           createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
         },
       }),
       // Total leads count
       ctx.prisma.lead.count({
-        where: { assignedToId: ctx.prismaUser.id },
+        where: leadFilter,
       }),
       // Converted leads count
       ctx.prisma.lead.count({
         where: {
-          assignedToId: ctx.prismaUser.id,
+          ...leadFilter,
           status: "converted",
         },
       }),
       // Previous period total leads
       ctx.prisma.lead.count({
         where: {
-          assignedToId: ctx.prismaUser.id,
+          ...leadFilter,
           createdAt: { lt: thirtyDaysAgo },
         },
       }),
       // Previous period converted leads
       ctx.prisma.lead.count({
         where: {
-          assignedToId: ctx.prismaUser.id,
+          ...leadFilter,
           status: "converted",
           createdAt: { lt: thirtyDaysAgo },
         },
@@ -86,14 +101,14 @@ export const analyticsRouter = createTRPCRouter({
       // Active campaigns count
       ctx.prisma.campaign.count({
         where: {
-          createdById: ctx.prismaUser.id,
+          ...campaignFilter,
           status: "active",
         },
       }),
       // Previous active campaigns count
       ctx.prisma.campaign.count({
         where: {
-          createdById: ctx.prismaUser.id,
+          ...campaignFilter,
           status: "active",
           createdAt: { lt: thirtyDaysAgo },
         },
@@ -174,7 +189,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get revenue vs target chart data
    */
-  getRevenueTrend: protectedProcedure
+  getRevenueTrend: protectedTenantProcedure
     .input(
       z
         .object({
@@ -201,15 +216,22 @@ export const analyticsRouter = createTRPCRouter({
       }
 
       // Get deals grouped by month - optimized query
-      const deals = await ctx.prisma.deal.findMany({
-        where: {
-          ownerId: ctx.prismaUser.id,
-          stage: "closed-won",
-          createdAt: {
-            gte: startDate,
-            lte: endDate,
-          },
+      const dealFilter: any = {
+        tenantId: ctx.tenant.id,
+        stage: "closed-won",
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
         },
+      }
+
+      // Regular users only see their deals
+      if (ctx.membership.role === Role.USER) {
+        dealFilter.ownerId = ctx.prismaUser.id
+      }
+
+      const deals = await ctx.prisma.deal.findMany({
+        where: dealFilter,
         select: {
           value: true,
           createdAt: true,
@@ -239,7 +261,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get pipeline distribution chart data
    */
-  getPipelineDistribution: protectedProcedure
+  getPipelineDistribution: protectedTenantProcedure
     .input(
       z
         .object({
@@ -255,7 +277,12 @@ export const analyticsRouter = createTRPCRouter({
       
       // Build where clause with optional date range
       const where: any = {
-        ownerId: ctx.prismaUser.id,
+        tenantId: ctx.tenant.id,
+      }
+
+      // Regular users only see their deals
+      if (ctx.membership.role === Role.USER) {
+        where.ownerId = ctx.prismaUser.id
       }
 
       if (input?.startDate && input?.endDate) {
@@ -295,7 +322,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get recent activities for dashboard
    */
-  getRecentActivities: protectedProcedure
+  getRecentActivities: protectedTenantProcedure
     .input(
       z
         .object({
@@ -307,6 +334,7 @@ export const analyticsRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const activities = await ctx.prisma.activity.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           userId: ctx.prismaUser.id,
         },
         orderBy: { createdAt: "desc" },
@@ -364,7 +392,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get deals closed in period
    */
-  getDealsClosed: protectedProcedure
+  getDealsClosed: protectedTenantProcedure
     .input(
       z.object({
         period: z.enum(["week", "month", "quarter", "year"]).optional().default("quarter"),
@@ -402,6 +430,7 @@ export const analyticsRouter = createTRPCRouter({
 
       const deals = await ctx.prisma.deal.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           ownerId: ctx.prismaUser.id,
           stage: "closed-won",
           createdAt: {
@@ -427,7 +456,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get average deal size
    */
-  getAverageDealSize: protectedProcedure
+  getAverageDealSize: protectedTenantProcedure
     .input(
       z
         .object({
@@ -439,6 +468,7 @@ export const analyticsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
+        tenantId: ctx.tenant.id,
         ownerId: ctx.prismaUser.id,
         stage: "closed-won",
       }
@@ -477,7 +507,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get team performance metrics
    */
-  getTeamPerformance: protectedProcedure
+  getTeamPerformance: protectedTenantProcedure
     .input(
       z
         .object({
@@ -491,6 +521,14 @@ export const analyticsRouter = createTRPCRouter({
       // Get all users (if admin) or just current user
       const users = ctx.prismaUser.role === "admin"
         ? await ctx.prisma.user.findMany({
+            where: {
+              memberships: {
+                some: {
+                  tenantId: ctx.tenant.id,
+                  status: "active",
+                },
+              },
+            },
             select: {
               id: true,
               name: true,
@@ -502,6 +540,7 @@ export const analyticsRouter = createTRPCRouter({
       const performance = await Promise.all(
         users.map(async (user) => {
         const dealWhere: any = {
+          tenantId: ctx.tenant.id,
           ownerId: user.id,
           stage: "closed-won",
         }
@@ -550,7 +589,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get lead sources breakdown
    */
-  getLeadSources: protectedProcedure
+  getLeadSources: protectedTenantProcedure
     .input(
       z
         .object({
@@ -566,6 +605,7 @@ export const analyticsRouter = createTRPCRouter({
       // You can enhance this when you add source tracking to leads
 
       const where: any = {
+        tenantId: ctx.tenant.id,
         assignedToId: ctx.prismaUser.id,
       }
 
@@ -600,7 +640,7 @@ export const analyticsRouter = createTRPCRouter({
   /**
    * Get campaign performance trends
    */
-  getCampaignPerformance: protectedProcedure
+  getCampaignPerformance: protectedTenantProcedure
     .input(
       z
         .object({
@@ -612,6 +652,7 @@ export const analyticsRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const campaigns = await ctx.prisma.campaign.findMany({
         where: {
+          tenantId: ctx.tenant.id,
           createdById: ctx.prismaUser.id,
         },
         select: {

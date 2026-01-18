@@ -49,6 +49,7 @@ model Lead {
   deals        Deal[]
   assignedTo   User?      @relation(fields: [assignedToId], references: [id])
 
+  @@unique([id, tenantId])
   @@index([assignedToId])
   @@index([temperature])
   @@index([status])
@@ -72,6 +73,7 @@ model Deal {
   lead          Lead?      @relation(fields: [leadId], references: [id])
   owner         User       @relation(fields: [ownerId], references: [id])
 
+  @@unique([id, tenantId])
   @@index([ownerId])
   @@index([stage])
   @@index([leadId])
@@ -96,6 +98,7 @@ model Campaign {
   updatedAt   DateTime  @updatedAt
   createdBy   User      @relation(fields: [createdById], references: [id])
 
+  @@unique([id, tenantId])
   @@index([createdById])
   @@index([status])
 }
@@ -115,6 +118,7 @@ model Task {
   updatedAt    DateTime  @updatedAt
   assignedTo   User      @relation(fields: [assignedToId], references: [id])
 
+  @@unique([id, tenantId])
   @@index([assignedToId])
   @@index([status])
   @@index([priority])
@@ -135,6 +139,7 @@ model Activity {
   lead        Lead?    @relation(fields: [leadId], references: [id])
   user        User     @relation(fields: [userId], references: [id])
 
+  @@unique([id, tenantId])
   @@index([userId])
   @@index([leadId])
   @@index([dealId])

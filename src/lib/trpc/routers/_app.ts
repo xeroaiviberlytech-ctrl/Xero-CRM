@@ -9,6 +9,7 @@ import { analyticsRouter } from "./analytics"
 import { activitiesRouter } from "./activities"
 import { searchRouter } from "./search"
 import { filtersRouter } from "./filters"
+import { membershipsRouter } from "./memberships"
 export const appRouter = createTRPCRouter({
   // Health check endpoint
   hello: publicProcedure
@@ -32,6 +33,7 @@ export const appRouter = createTRPCRouter({
   activities: activitiesRouter,
   search: searchRouter,
   filters: filtersRouter,
+  memberships: membershipsRouter,
 })
 
 export type AppRouter = typeof appRouter

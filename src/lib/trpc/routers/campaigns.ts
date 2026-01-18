@@ -1,4 +1,4 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
@@ -6,7 +6,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Get all campaigns with optional filters
    */
-  list: protectedProcedure
+  list: protectedTenantProcedure
     .input(
       z
         .object({
@@ -19,7 +19,12 @@ export const campaignsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
-        createdById: ctx.prismaUser.id, // Only show campaigns created by current user
+        tenantId: ctx.tenant.id,
+      }
+
+      // Regular users only see their created campaigns, admins/owners see all
+      if (ctx.membership.role === "USER") {
+        where.createdById = ctx.prismaUser.id
       }
 
       if (input.status && input.status !== "all") {
@@ -57,7 +62,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Get single campaign by ID
    */
-  getById: protectedProcedure
+  getById: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const campaign = await ctx.prisma.campaign.findUnique({
@@ -94,7 +99,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Create new campaign
    */
-  create: protectedProcedure
+  create: protectedTenantProcedure
     .input(
       z.object({
         name: z.string().min(1, "Campaign name is required"),
@@ -117,6 +122,7 @@ export const campaignsRouter = createTRPCRouter({
       const campaign = await ctx.prisma.campaign.create({
         data: {
           ...input,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
           createdById: ctx.prismaUser.id,
           sent: 0,
           opened: 0,
@@ -141,6 +147,7 @@ export const campaignsRouter = createTRPCRouter({
           title: `Campaign created: ${campaign.name}`,
           description: `New campaign ${campaign.name} was created`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id, // Guaranteed to exist by middleware
         },
       })
 
@@ -150,7 +157,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Update campaign
    */
-  update: protectedProcedure
+  update: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -195,7 +202,10 @@ export const campaignsRouter = createTRPCRouter({
       }
 
       const campaign = await ctx.prisma.campaign.update({
-        where: { id },
+        where: {
+          id,
+          tenantId: ctx.tenant.id,
+        },
         data: updateData,
         include: {
           createdBy: {
@@ -215,6 +225,7 @@ export const campaignsRouter = createTRPCRouter({
           title: `Campaign updated: ${campaign.name}`,
           description: `Campaign ${campaign.name} was updated`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -224,7 +235,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Delete campaign
    */
-  delete: protectedProcedure
+  delete: protectedTenantProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const campaign = await ctx.prisma.campaign.findUnique({
@@ -246,7 +257,10 @@ export const campaignsRouter = createTRPCRouter({
       }
 
       await ctx.prisma.campaign.delete({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
       })
 
       return { success: true }
@@ -255,7 +269,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Update campaign status
    */
-  updateStatus: protectedProcedure
+  updateStatus: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -282,7 +296,10 @@ export const campaignsRouter = createTRPCRouter({
       }
 
       const updatedCampaign = await ctx.prisma.campaign.update({
-        where: { id: input.id },
+        where: {
+          id: input.id,
+          tenantId: ctx.tenant.id,
+        },
         data: { status: input.status },
         include: {
           createdBy: {
@@ -302,6 +319,7 @@ export const campaignsRouter = createTRPCRouter({
           title: `Campaign status changed to ${input.status}`,
           description: `Campaign ${campaign.name} status was changed to ${input.status}`,
           userId: ctx.prismaUser.id,
+          tenantId: ctx.tenant.id,
         },
       })
 
@@ -311,7 +329,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Update campaign metrics
    */
-  updateMetrics: protectedProcedure
+  updateMetrics: protectedTenantProcedure
     .input(
       z.object({
         id: z.string(),
@@ -350,7 +368,10 @@ export const campaignsRouter = createTRPCRouter({
       if (metrics.converted !== undefined) updateData.converted = metrics.converted
 
       return ctx.prisma.campaign.update({
-        where: { id },
+        where: {
+          id,
+          tenantId: ctx.tenant.id,
+        },
         data: updateData,
         include: {
           createdBy: {
@@ -367,9 +388,10 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Get campaign statistics
    */
-  getStats: protectedProcedure.query(async ({ ctx }) => {
+  getStats: protectedTenantProcedure.query(async ({ ctx }) => {
     const campaigns = await ctx.prisma.campaign.findMany({
       where: {
+        tenantId: ctx.tenant.id,
         createdById: ctx.prismaUser.id,
       },
       select: {
@@ -404,7 +426,7 @@ export const campaignsRouter = createTRPCRouter({
   /**
    * Get campaign performance trends over time
    */
-  getPerformance: protectedProcedure
+  getPerformance: protectedTenantProcedure
     .input(
       z
         .object({
@@ -418,6 +440,7 @@ export const campaignsRouter = createTRPCRouter({
       // This would typically aggregate data over time periods
       // For now, return basic structure - can be enhanced with actual time-series data
       const where: any = {
+        tenantId: ctx.tenant.id,
         createdById: ctx.prismaUser.id,
       }
 

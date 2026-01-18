@@ -1,13 +1,14 @@
-import { createTRPCRouter, protectedProcedure } from "../server"
+import { createTRPCRouter, protectedTenantProcedure } from "../server"
 import { z } from "zod"
 
 export const filtersRouter = createTRPCRouter({
   /**
    * Get available lead filters
    */
-  getLeadFilters: protectedProcedure.query(async ({ ctx }) => {
+  getLeadFilters: protectedTenantProcedure.query(async ({ ctx }) => {
     const leads = await ctx.prisma.lead.findMany({
       where: {
+        tenantId: ctx.tenant.id,
         assignedToId: ctx.prismaUser.id,
       },
       select: {
@@ -32,9 +33,10 @@ export const filtersRouter = createTRPCRouter({
   /**
    * Get available deal filters
    */
-  getDealFilters: protectedProcedure.query(async ({ ctx }) => {
+  getDealFilters: protectedTenantProcedure.query(async ({ ctx }) => {
     const deals = await ctx.prisma.deal.findMany({
       where: {
+        tenantId: ctx.tenant.id,
         ownerId: ctx.prismaUser.id,
       },
       select: {
@@ -61,9 +63,10 @@ export const filtersRouter = createTRPCRouter({
   /**
    * Get available task filters
    */
-  getTaskFilters: protectedProcedure.query(async ({ ctx }) => {
+  getTaskFilters: protectedTenantProcedure.query(async ({ ctx }) => {
     const tasks = await ctx.prisma.task.findMany({
       where: {
+        tenantId: ctx.tenant.id,
         assignedToId: ctx.prismaUser.id,
       },
       select: {
@@ -88,9 +91,10 @@ export const filtersRouter = createTRPCRouter({
   /**
    * Get available campaign filters
    */
-  getCampaignFilters: protectedProcedure.query(async ({ ctx }) => {
+  getCampaignFilters: protectedTenantProcedure.query(async ({ ctx }) => {
     const campaigns = await ctx.prisma.campaign.findMany({
       where: {
+        tenantId: ctx.tenant.id,
         createdById: ctx.prismaUser.id,
       },
       select: {
@@ -112,7 +116,7 @@ export const filtersRouter = createTRPCRouter({
   /**
    * Apply multiple filters to leads
    */
-  applyLeadFilters: protectedProcedure
+  applyLeadFilters: protectedTenantProcedure
     .input(
       z.object({
         temperature: z.array(z.enum(["hot", "warm", "cold"])).optional(),
@@ -124,6 +128,7 @@ export const filtersRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
+        tenantId: ctx.tenant.id,
         assignedToId: ctx.prismaUser.id,
       }
 
@@ -168,7 +173,7 @@ export const filtersRouter = createTRPCRouter({
   /**
    * Apply multiple filters to deals
    */
-  applyDealFilters: protectedProcedure
+  applyDealFilters: protectedTenantProcedure
     .input(
       z.object({
         stage: z
@@ -182,6 +187,7 @@ export const filtersRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const where: any = {
+        tenantId: ctx.tenant.id,
         ownerId: ctx.prismaUser.id,
       }
 
